@@ -1,5 +1,3 @@
-// lib/dealers.ts
-
 export type VenueType = "home" | "amusement" | "both";
 export type GameType = "NLH" | "Omaha" | "Stud" | "Draw" | "Hi-Lo";
 
@@ -15,6 +13,7 @@ export interface Dealer {
   tags: string[];
   bio: string;
   completedJobs: number;
+  hourlyRate: number; // 時給（円）
   photoUrl?: string;
   isActive: boolean;
 }
@@ -47,27 +46,37 @@ const BIO_POOL = [
   "ゲームの進行だけでなく、場の雰囲気作りも大切にしています。",
   "初心者から上級者まで、それぞれのレベルに合わせた対応が得意です。",
 ];
+const HOURLY_RATES = [3000, 3500, 4000, 4500, 5000, 5500, 6000];
 
 const FIRST_NAMES = ["颯太","彩","大輝","花","健太","美咲","翔","さくら","拓也","あかね","雄介","なな","直樹","ゆい","慎一","まい","康平","りな","浩二","えみ","達也","みく","正樹","あい","俊介","ひな","和也","もも","義則","ゆか","博之","れな","光雄","さき","剛志","まな","誠一","ちか","隆司","のぞみ"];
 const LAST_NAMES = ["田中","山本","鈴木","中村","佐藤","高橋","伊藤","渡辺","加藤","小林","吉田","山田","松本","井上","木村","林","斎藤","清水","山口","阿部","池田","橋本","石川","前田","藤原","藤田","岡田","後藤","長谷川","石井","村上","近藤","坂本","遠藤","青木","藤井","西村","福田","岡本","三浦"];
 const INITIALS = ["田","山","鈴","中","佐","高","伊","渡","加","小","吉","山","松","井","木","林","斎","清","山","阿","池","橋","石","前","藤","藤","岡","後","長","石","村","近","坂","遠","青","藤","西","福","岡","三"];
 
-function pickRandom<T>(arr: T[], n: number): T[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, n);
+function pickRandom<T>(arr: T[], n: number, seed: number): T[] {
+  const result: T[] = [];
+  const used = new Set<number>();
+  let s = seed;
+  while (result.length < Math.min(n, arr.length)) {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    const idx = Math.abs(s) % arr.length;
+    if (!used.has(idx)) { used.add(idx); result.push(arr[idx]); }
+  }
+  return result;
 }
 
 export const DEALERS: Dealer[] = Array.from({ length: 40 }, (_, i) => {
-  const exp = Math.floor(Math.random() * 8) + 1;
-  const gameCount = Math.floor(Math.random() * 3) + 1;
-  const games = pickRandom(GAME_TYPES, gameCount) as GameType[];
-  const areaCount = Math.floor(Math.random() * 3) + 1;
-  const areas = pickRandom(AREAS, areaCount);
+  const seed = i * 7919 + 12345;
+  const exp = (seed % 8) + 1;
+  const gameCount = (seed % 3) + 1;
+  const games = pickRandom(GAME_TYPES, gameCount, seed) as GameType[];
+  const areaCount = (seed % 3) + 1;
+  const areas = pickRandom(AREAS, areaCount, seed + 1);
   const venue = VENUE_TYPES[i % 3];
-  const tagCount = Math.floor(Math.random() * 3) + 2;
-  const tags = pickRandom(TAG_POOL, tagCount);
+  const tagCount = (seed % 3) + 2;
+  const tags = pickRandom(TAG_POOL, tagCount, seed + 2);
   const bioTemplate = BIO_POOL[i % BIO_POOL.length];
   const bio = bioTemplate.replace("{exp}", String(exp));
+  const hourlyRate = HOURLY_RATES[i % HOURLY_RATES.length];
 
   return {
     id: String(i + 1),
@@ -80,7 +89,8 @@ export const DEALERS: Dealer[] = Array.from({ length: 40 }, (_, i) => {
     venueType: venue,
     tags,
     bio,
-    completedJobs: Math.floor(Math.random() * 80) + 5,
+    completedJobs: ((seed % 80) + 5),
+    hourlyRate,
     isActive: true,
   };
 });

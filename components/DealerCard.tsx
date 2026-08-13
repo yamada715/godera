@@ -8,27 +8,16 @@ export function DealerCard({ dealer }: { dealer: Dealer }) {
     <Link
       href={`/dealers/${dealer.id}`}
       style={{
-        textDecoration: "none",
-        display: "flex",
-        flexDirection: "row",
-        background: "#FFFFFF",
-        border: "0.5px solid #D3D1C7",
-        borderRadius: 12,
-        overflow: "hidden",
-        cursor: "pointer",
-        minHeight: 100,
+        textDecoration: "none", display: "flex", flexDirection: "row",
+        background: "#FFFFFF", border: "0.5px solid #D3D1C7",
+        borderRadius: 12, overflow: "hidden", cursor: "pointer",
       }}
       aria-label={`${dealer.name}の詳細を見る`}
     >
       {/* 左: 写真エリア */}
       <div style={{
-        width: 80,
-        flexShrink: 0,
-        background: dealer.avatarColor,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
+        width: 76, flexShrink: 0, background: dealer.avatarColor,
+        display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
       }}>
         {dealer.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -44,34 +33,50 @@ export function DealerCard({ dealer }: { dealer: Dealer }) {
 
       {/* 右: テキスト情報 */}
       <div style={{
-        flex: 1,
-        padding: "10px 10px 10px 10px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 2,
-        minWidth: 0,
+        flex: 1, padding: "10px 10px", display: "flex",
+        flexDirection: "column", gap: 2, minWidth: 0,
       }}>
+        {/* 名前 */}
         <div style={{
           fontSize: 13, fontWeight: 500, color: "#2C2C2A",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {dealer.name}
         </div>
+
+        {/* 時給 */}
+        <div style={{ fontSize: 13, fontWeight: 500, color: "#0E2A45" }}>
+          ¥{dealer.hourlyRate.toLocaleString()}<span style={{ fontSize: 10, color: "#888780", fontWeight: 400 }}> / 時間</span>
+        </div>
+
+        {/* 種別バッジ */}
         <span style={{
           display: "inline-block", fontSize: 10, padding: "1px 6px",
           borderRadius: 20, background: bg, color, fontWeight: 500,
-          alignSelf: "flex-start", marginBottom: 2,
+          alignSelf: "flex-start",
         }}>
           {VENUE_LABEL[dealer.venueType]}
         </span>
-        <div style={{ fontSize: 11, color: "#5F5E5A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          経験{dealer.experienceYears}年
+
+        {/* 経験年数 */}
+        <div style={{ fontSize: 11, color: "#5F5E5A" }}>
+          経験{dealer.experienceYears}年 ・ 完了{dealer.completedJobs}件
         </div>
-        <div style={{ fontSize: 11, color: "#5F5E5A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+
+        {/* ゲーム */}
+        <div style={{
+          fontSize: 11, color: "#5F5E5A",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
           {dealer.gameTypes.join(" / ")}
         </div>
-        <div style={{ fontSize: 11, color: "#5F5E5A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {dealer.areas[0]}{dealer.areas.length > 1 ? "ほか" : ""}
+
+        {/* エリア */}
+        <div style={{
+          fontSize: 11, color: "#5F5E5A",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
+          {dealer.areas.join(" / ")}
         </div>
       </div>
     </Link>
