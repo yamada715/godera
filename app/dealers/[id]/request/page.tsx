@@ -133,7 +133,7 @@ export default function RequestPage() {
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>時間 <span style={{ color: "#E24B4A" }}>*</span></label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="time" value={startTime} onChange={(e) => { setStart(e.target.value); setErrors((prev) => ({ ...prev, startTime: "" })); }} style={{ ...inputStyle, flex: 1 }} />
+              <input type="time" step="900" value={startTime} onChange={(e) => { setStart(e.target.value); setErrors((prev) => ({ ...prev, startTime: "" })); }} style={{ ...inputStyle, flex: 1 }} />
               <span style={{ color: "#888780", fontSize: 13 }}>〜</span>
               <input type="time" value={endTime} onChange={(e) => { setEnd(e.target.value); setErrors((prev) => ({ ...prev, endTime: "" })); }} style={{ ...inputStyle, flex: 1 }} />
             </div>
