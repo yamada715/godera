@@ -51,6 +51,7 @@ const totalFee = dealer ? Math.round(dealer.hourlyRate * hours) : 0;
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
     setLoading(true);
+    if (!dealer) return null;
     const { error } = await supabase.from("requests").insert({
       dealer_id: dealer.id,
       dealer_name: dealer.name,
