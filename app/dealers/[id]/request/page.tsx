@@ -33,10 +33,8 @@ export default function RequestPage() {
     }
   }, [startTime, endTime]);
 
-  if (!dealer) return <div style={{ padding: 32, textAlign: "center", color: "#888780" }}>ディーラーが見つかりません</div>;
-
-  const totalFee = Math.round(dealer.hourlyRate * hours);
-
+if (!dealer) return <div style={{ padding: 32, textAlign: "center", color: "#888780" }}>ディーラーが見つかりません</div>;
+const totalFee = dealer ? Math.round(dealer.hourlyRate * hours) : 0;
   function validate() {
     const e: Record<string, string> = {};
     if (!date)      e.date      = "日付を入力してください";

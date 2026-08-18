@@ -32,6 +32,7 @@ type Request = {
   total_fee: number;
   status: string;
   admin_reply: string;
+  email: string;
   created_at: string;
 };
 
