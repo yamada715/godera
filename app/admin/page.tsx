@@ -1,4 +1,3 @@
-// app/admin/page.tsx — 管理者画面
 "use client";
 
 import { useState, useEffect } from "react";
@@ -27,29 +26,29 @@ type Request = {
   start_time: string;
   end_time: string;
   location: string;
+  email: string;
   note: string;
   hours: number;
   total_fee: number;
   status: string;
   admin_reply: string;
-  email: string;
   created_at: string;
 };
 
 const VENUE_LABEL: Record<string, string> = {
   home: "個人宅", amusement: "アミューズ", both: "両方対応",
 };
-const STATUS_LABEL: Record<string, { label: string; bg: string; color: string }> = {
-  pending:  { label: "審査中",   bg: "#FAEEDA", color: "#633806" },
-  approved: { label: "承認済",   bg: "#EAF3DE", color: "#3B6D11" },
-  rejected: { label: "却下",     bg: "#FCEBEB", color: "#A32D2D" },
-};
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
 
 export default function AdminPage() {
   const [authed, setAuthed]   = useState(false);
   const [pw, setPw]           = useState("");
   const [pwError, setPwError] = useState("");
-  const [tab, setTab]         = useState<"applications" | "requests">("applications");
+  const [tab, setTab]         = useState<"applications" | "requests" | "done">("applications");
   const [apps, setApps]       = useState<Application[]>([]);
   const [reqs, setReqs]       = useState<Request[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,6 +80,11 @@ export default function AdminPage() {
     setReply((prev) => ({ ...prev, [id]: "" }));
   }
 
+  async function completeRequest(id: string) {
+    await supabase.from("requests").update({ status: "completed" }).eq("id", id);
+    setReqs((prev) => prev.map((r) => r.id === id ? { ...r, status: "completed" } : r));
+  }
+
   if (!authed) {
     return (
       <main style={{ minHeight: "100dvh", background: "#0E2A45", display: "flex", alignItems: "center", justifyContent: "center", padding: 32 }}>
@@ -101,6 +105,12 @@ export default function AdminPage() {
     );
   }
 
+  const pendingApps = apps.filter((a) => a.status === "pending");
+  const doneApps    = apps.filter((a) => a.status !== "pending");
+  const pendingReqs = reqs.filter((r) => r.status === "pending");
+  const repliedReqs = reqs.filter((r) => r.status === "replied");
+  const completedReqs = reqs.filter((r) => r.status === "completed");
+
   return (
     <main style={{ minHeight: "100dvh", background: "#F1EFE8", paddingBottom: 40 }}>
       <header style={{ background: "#0E2A45", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -114,74 +124,81 @@ export default function AdminPage() {
       </header>
 
       {/* タブ */}
-      <div style={{ display: "flex", background: "#fff", borderBottom: "0.5px solid #D3D1C7" }}>
-        <button onClick={() => setTab("applications")} style={{ flex: 1, padding: "12px", fontSize: 13, fontWeight: tab === "applications" ? 500 : 400, color: tab === "applications" ? "#0E2A45" : "#888780", background: "none", border: "none", borderBottom: tab === "applications" ? "2px solid #0E2A45" : "2px solid transparent", cursor: "pointer" }}>
-          ディーラー申請 ({apps.filter((a) => a.status === "pending").length})
-        </button>
-        <button onClick={() => setTab("requests")} style={{ flex: 1, padding: "12px", fontSize: 13, fontWeight: tab === "requests" ? 500 : 400, color: tab === "requests" ? "#0E2A45" : "#888780", background: "none", border: "none", borderBottom: tab === "requests" ? "2px solid #0E2A45" : "2px solid transparent", cursor: "pointer" }}>
-          依頼一覧 ({reqs.filter((r) => r.status === "pending").length})
-        </button>
+      <div style={{ display: "flex", background: "#fff", borderBottom: "0.5px solid #D3D1C7", overflowX: "auto" }}>
+        {[
+          { key: "applications", label: `申請 (${pendingApps.length})` },
+          { key: "requests",     label: `依頼 (${pendingReqs.length + repliedReqs.length})` },
+          { key: "done",         label: `完了済 (${completedReqs.length + doneApps.length})` },
+        ].map(({ key, label }) => (
+          <button key={key} onClick={() => setTab(key as typeof tab)} style={{
+            flex: 1, padding: "12px 8px", fontSize: 13, whiteSpace: "nowrap",
+            fontWeight: tab === key ? 500 : 400,
+            color: tab === key ? "#0E2A45" : "#888780",
+            background: "none", border: "none",
+            borderBottom: tab === key ? "2px solid #0E2A45" : "2px solid transparent",
+            cursor: "pointer",
+          }}>{label}</button>
+        ))}
       </div>
 
       <div style={{ padding: "12px" }}>
         {loading && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>読み込み中...</div>}
 
-        {/* ディーラー申請 */}
+        {/* 申請タブ */}
         {!loading && tab === "applications" && (
           <div>
-            {apps.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>申請はありません</div>}
-            {apps.map((app) => {
-              const st = STATUS_LABEL[app.status] || STATUS_LABEL.pending;
-              return (
-                <div key={app.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A" }}>{app.name}</div>
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 500 }}>{st.label}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 4 }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h ・ {VENUE_LABEL[app.venue_type]}</div>
-                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 4 }}>ゲーム: {app.game_types.join(", ")}</div>
-                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 8 }}>エリア: {app.areas.join(", ")}</div>
-                  <div style={{ fontSize: 13, color: "#2C2C2A", lineHeight: 1.6, marginBottom: 12, background: "#F9F9F7", borderRadius: 8, padding: "8px 10px" }}>{app.bio}</div>
-                  {app.status === "pending" && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => updateAppStatus(app.id, "approved")} style={{ flex: 1, padding: "8px", background: "#EAF3DE", color: "#3B6D11", border: "0.5px solid #C0DD97", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-                        ✓ 承認
-                      </button>
-                      <button onClick={() => updateAppStatus(app.id, "rejected")} style={{ flex: 1, padding: "8px", background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-                        ✗ 却下
-                      </button>
-                    </div>
-                  )}
+            {pendingApps.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>未対応の申請はありません</div>}
+            {pendingApps.map((app) => (
+              <div key={app.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A" }}>{app.name}</div>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#FAEEDA", color: "#633806", fontWeight: 500 }}>審査中</span>
                 </div>
-              );
-            })}
+                <div style={{ fontSize: 11, color: "#888780", marginBottom: 6 }}>📅 送信: {formatDate(app.created_at)}</div>
+                <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h ・ {VENUE_LABEL[app.venue_type]}</div>
+                <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>ゲーム: {app.game_types.join(", ")}</div>
+                <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 8 }}>エリア: {app.areas.join(", ")}</div>
+                <div style={{ fontSize: 13, color: "#2C2C2A", lineHeight: 1.6, marginBottom: 12, background: "#F9F9F7", borderRadius: 8, padding: "8px 10px" }}>{app.bio}</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => updateAppStatus(app.id, "approved")} style={{ flex: 1, padding: "8px", background: "#EAF3DE", color: "#3B6D11", border: "0.5px solid #C0DD97", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                    ✓ 承認
+                  </button>
+                  <button onClick={() => updateAppStatus(app.id, "rejected")} style={{ flex: 1, padding: "8px", background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                    ✗ 却下
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* 依頼一覧 */}
+        {/* 依頼タブ */}
         {!loading && tab === "requests" && (
           <div>
-            {reqs.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>依頼はありません</div>}
-            {reqs.map((req) => {
-              const st = req.status === "replied"
-                ? { label: "返信済", bg: "#EAF3DE", color: "#3B6D11" }
-                : { label: "未返信", bg: "#FAEEDA", color: "#633806" };
+            {pendingReqs.length === 0 && repliedReqs.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>未対応の依頼はありません</div>}
+            {[...pendingReqs, ...repliedReqs].map((req) => {
+              const isPending = req.status === "pending";
               return (
                 <div key={req.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                     <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A" }}>{req.dealer_name}</div>
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 500 }}>{st.label}</span>
+                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: isPending ? "#FAEEDA" : "#EAF3DE", color: isPending ? "#633806" : "#3B6D11", fontWeight: 500 }}>
+                      {isPending ? "未返信" : "返信済"}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>メール: <a href={`mailto:${req.email}`} style={{ color: "#0E2A45" }}>{req.email}</a></div>
+                  <div style={{ fontSize: 11, color: "#888780", marginBottom: 6 }}>📅 送信: {formatDate(req.created_at)}</div>
                   <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>日時: {req.date} {req.start_time}〜{req.end_time}（{req.hours}時間）</div>
                   <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>場所: {req.location}</div>
+                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>
+                    メール: <a href={`mailto:${req.email}`} style={{ color: "#0E2A45" }}>{req.email}</a>
+                  </div>
                   <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 8 }}>料金目安: ¥{req.total_fee.toLocaleString()}</div>
                   {req.note && <div style={{ fontSize: 13, color: "#2C2C2A", lineHeight: 1.6, marginBottom: 10, background: "#F9F9F7", borderRadius: 8, padding: "8px 10px" }}>{req.note}</div>}
                   {req.admin_reply && (
-                    <div style={{ fontSize: 12, color: "#3B6D11", background: "#EAF3DE", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>返信済: {req.admin_reply}</div>
+                    <div style={{ fontSize: 12, color: "#3B6D11", background: "#EAF3DE", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>返信内容: {req.admin_reply}</div>
                   )}
-                  {req.status === "pending" && (
-                    <div>
+                  {isPending && (
+                    <div style={{ marginBottom: 8 }}>
                       <textarea rows={2} placeholder="返信内容を入力..." value={reply[req.id] || ""}
                         onChange={(e) => setReply((prev) => ({ ...prev, [req.id]: e.target.value }))}
                         style={{ width: "100%", padding: "8px 10px", fontSize: 13, borderRadius: 8, border: "0.5px solid #D3D1C7", outline: "none", resize: "none", marginBottom: 8 }} />
@@ -190,9 +207,55 @@ export default function AdminPage() {
                       </button>
                     </div>
                   )}
+                  <button onClick={() => completeRequest(req.id)} style={{ width: "100%", padding: "8px", background: "#F1EFE8", color: "#5F5E5A", border: "0.5px solid #D3D1C7", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
+                    完了済みに移動
+                  </button>
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* 完了済みタブ */}
+        {!loading && tab === "done" && (
+          <div>
+            {completedReqs.length === 0 && doneApps.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>完了済みの項目はありません</div>}
+
+            {completedReqs.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 500, color: "#888780", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}>完了済み依頼</div>
+                {completedReqs.map((req) => (
+                  <div key={req.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10, opacity: 0.7 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: "#2C2C2A" }}>{req.dealer_name}</div>
+                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#F1EFE8", color: "#888780", fontWeight: 500 }}>完了</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>📅 送信: {formatDate(req.created_at)}</div>
+                    <div style={{ fontSize: 12, color: "#5F5E5A" }}>日時: {req.date} {req.start_time}〜{req.end_time}</div>
+                    <div style={{ fontSize: 12, color: "#5F5E5A" }}>場所: {req.location}</div>
+                    <div style={{ fontSize: 12, color: "#5F5E5A" }}>料金: ¥{req.total_fee.toLocaleString()}</div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {doneApps.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 500, color: "#888780", letterSpacing: ".06em", textTransform: "uppercase", margin: "16px 0 8px" }}>承認済み・却下済み申請</div>
+                {doneApps.map((app) => (
+                  <div key={app.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10, opacity: 0.7 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: "#2C2C2A" }}>{app.name}</div>
+                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: app.status === "approved" ? "#EAF3DE" : "#FCEBEB", color: app.status === "approved" ? "#3B6D11" : "#A32D2D", fontWeight: 500 }}>
+                        {app.status === "approved" ? "承認済" : "却下"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>📅 送信: {formatDate(app.created_at)}</div>
+                    <div style={{ fontSize: 12, color: "#5F5E5A" }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h</div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </div>
