@@ -233,6 +233,7 @@ export default function AdminPage() {
                     <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>📅 送信: {formatDate(req.created_at)}</div>
                     <div style={{ fontSize: 12, color: "#5F5E5A" }}>日時: {req.date} {req.start_time}〜{req.end_time}</div>
                     <div style={{ fontSize: 12, color: "#5F5E5A" }}>場所: {req.location}</div>
+                    <div style={{ fontSize: 12, color: "#5F5E5A" }}>メール: <a href={`mailto:${req.email}`} style={{ color: "#0E2A45" }}>{req.email}</a></div>
                     <div style={{ fontSize: 12, color: "#5F5E5A" }}>料金: ¥{req.total_fee.toLocaleString()}</div>
                   </div>
                 ))}
