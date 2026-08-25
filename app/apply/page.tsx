@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase, GAME_TYPES, AREAS, type GameType } from "@/lib/supabase";
 
@@ -14,9 +14,12 @@ export default function ApplyPage() {
   const [bio, setBio]             = useState("");
   const [tags, setTags]           = useState<string[]>([]);
   const [tagOptions, setTagOptions] = useState<string[]>([]);
+  const [photo, setPhoto]         = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading]     = useState(false);
   const [errors, setErrors]       = useState<Record<string, string>>({});
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function loadTags() {
@@ -25,6 +28,18 @@ export default function ApplyPage() {
     }
     loadTags();
   }, []);
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((p) => ({ ...p, photo: "5MB以下の画像を選択してください" }));
+      return;
+    }
+    setPhoto(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setErrors((p) => ({ ...p, photo: "" }));
+  }
 
   function toggleGame(g: GameType) {
     setGames((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]);
@@ -52,10 +67,26 @@ export default function ApplyPage() {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
     setLoading(true);
+
+    // 写真をSupabase Storageにアップロード
+    let photo_url: string | null = null;
+    if (photo) {
+      const ext = photo.name.split(".").pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, photo, { contentType: photo.type });
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(fileName);
+        photo_url = urlData.publicUrl;
+      }
+    }
+
     const { error } = await supabase.from("dealer_applications").insert({
       name, experience_years: parseInt(exp),
       game_types: games, areas, venue_type: venue,
       hourly_rate: parseInt(rate), bio, tags,
+      photo_url,
       status: "pending", is_active: true,
     });
     setLoading(false);
@@ -96,6 +127,45 @@ export default function ApplyPage() {
       </header>
 
       <div style={{ padding: "16px" }}>
+
+        {/* 写真アップロード */}
+        <div style={sectionStyle}>
+          <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>プロフィール写真（任意）</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div
+              onClick={() => fileRef.current?.click()}
+              style={{
+                width: 80, height: 80, borderRadius: 2,
+                background: photoPreview ? "transparent" : "#F0F0F0",
+                border: "0.5px solid #E8E8E8",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", overflow: "hidden", flexShrink: 0,
+              }}
+            >
+              {photoPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoPreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                  <circle cx="16" cy="12" r="7" fill="#CCCCCC" />
+                  <ellipse cx="16" cy="26" rx="11" ry="7" fill="#CCCCCC" />
+                </svg>
+              )}
+            </div>
+            <div>
+              <button onClick={() => fileRef.current?.click()}
+                style={{ padding: "8px 16px", background: "#0A0A0A", color: "#fff", border: "none", borderRadius: 2, fontSize: 12, cursor: "pointer", letterSpacing: 1, display: "block", marginBottom: 6 }}>
+                写真を選ぶ
+              </button>
+              <p style={{ fontSize: 11, color: "#999" }}>JPG・PNG・5MB以下</p>
+              {photo && <p style={{ fontSize: 11, color: "#0A0A0A", marginTop: 4 }}>✓ {photo.name}</p>}
+            </div>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
+          {errors.photo && <p style={errStyle}>{errors.photo}</p>}
+        </div>
+
+        {/* 基本情報 */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>基本情報</div>
           <div style={{ marginBottom: 14 }}>
@@ -125,6 +195,7 @@ export default function ApplyPage() {
           </div>
         </div>
 
+        {/* ゲーム種別 */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>対応ゲーム <span style={{ color: "#E24B4A" }}>*</span></div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -133,6 +204,7 @@ export default function ApplyPage() {
           {errors.games && <p style={errStyle}>{errors.games}</p>}
         </div>
 
+        {/* 対応エリア */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>対応エリア <span style={{ color: "#E24B4A" }}>*</span></div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -141,6 +213,7 @@ export default function ApplyPage() {
           {errors.areas && <p style={errStyle}>{errors.areas}</p>}
         </div>
 
+        {/* タグ */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>特徴タグ（任意）</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -148,6 +221,7 @@ export default function ApplyPage() {
           </div>
         </div>
 
+        {/* プロフィール */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>プロフィール</div>
           <label style={labelStyle}>自己紹介 <span style={{ color: "#E24B4A" }}>*</span></label>
