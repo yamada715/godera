@@ -5,20 +5,22 @@ import Link from "next/link";
 import { supabase, GAME_TYPES, AREAS, type GameType } from "@/lib/supabase";
 
 export default function ApplyPage() {
-  const [name, setName]           = useState("");
-  const [exp, setExp]             = useState("");
-  const [games, setGames]         = useState<GameType[]>([]);
-  const [areas, setAreas]         = useState<string[]>([]);
-  const [venue, setVenue]         = useState("");
-  const [rate, setRate]           = useState("");
-  const [bio, setBio]             = useState("");
-  const [tags, setTags]           = useState<string[]>([]);
+  const [name, setName]             = useState("");
+  const [email, setEmail]           = useState("");
+  const [password, setPassword]     = useState("");
+  const [exp, setExp]               = useState("");
+  const [games, setGames]           = useState<GameType[]>([]);
+  const [areas, setAreas]           = useState<string[]>([]);
+  const [venue, setVenue]           = useState("");
+  const [rate, setRate]             = useState("");
+  const [bio, setBio]               = useState("");
+  const [tags, setTags]             = useState<string[]>([]);
   const [tagOptions, setTagOptions] = useState<string[]>([]);
-  const [photo, setPhoto]         = useState<File | null>(null);
+  const [photo, setPhoto]           = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [errors, setErrors]       = useState<Record<string, string>>({});
+  const [submitted, setSubmitted]   = useState(false);
+  const [loading, setLoading]       = useState(false);
+  const [errors, setErrors]         = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -32,34 +34,29 @@ export default function ApplyPage() {
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors((p) => ({ ...p, photo: "5MB以下の画像を選択してください" }));
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) { setErrors((p) => ({ ...p, photo: "5MB以下の画像を選択してください" })); return; }
     setPhoto(file);
     setPhotoPreview(URL.createObjectURL(file));
     setErrors((p) => ({ ...p, photo: "" }));
   }
 
-  function toggleGame(g: GameType) {
-    setGames((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]);
-  }
-  function toggleArea(a: string) {
-    setAreas((prev) => prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]);
-  }
-  function toggleTag(t: string) {
-    setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
-  }
+  function toggleGame(g: GameType) { setGames((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]); }
+  function toggleArea(a: string)   { setAreas((prev) => prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]); }
+  function toggleTag(t: string)    { setTags((prev)  => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]); }
 
   function validate() {
     const e: Record<string, string> = {};
-    if (!name)              e.name  = "名前を入力してください";
-    if (!exp)               e.exp   = "経験年数を入力してください";
-    if (games.length === 0) e.games = "ゲーム種別を選択してください";
-    if (areas.length === 0) e.areas = "対応エリアを選択してください";
-    if (!venue)             e.venue = "対応種別を選択してください";
-    if (!rate)              e.rate  = "時給を入力してください";
-    if (!bio)               e.bio   = "自己紹介を入力してください";
+    if (!name)              e.name     = "名前を入力してください";
+    if (!email)             e.email    = "メールアドレスを入力してください";
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "正しいメールアドレスを入力してください";
+    if (!password)          e.password = "パスワードを入力してください";
+    if (password.length < 6) e.password = "パスワードは6文字以上にしてください";
+    if (!exp)               e.exp      = "経験年数を入力してください";
+    if (games.length === 0) e.games    = "ゲーム種別を選択してください";
+    if (areas.length === 0) e.areas    = "対応エリアを選択してください";
+    if (!venue)             e.venue    = "対応種別を選択してください";
+    if (!rate)              e.rate     = "時給を入力してください";
+    if (!bio)               e.bio      = "自己紹介を入力してください";
     return e;
   }
 
@@ -68,14 +65,24 @@ export default function ApplyPage() {
     if (Object.keys(e).length > 0) { setErrors(e); return; }
     setLoading(true);
 
-    // 写真をSupabase Storageにアップロード
+    // メールアドレスの重複チェック
+    const { data: existing } = await supabase
+      .from("dealer_applications")
+      .select("id")
+      .eq("email", email)
+      .single();
+    if (existing) {
+      setErrors((p) => ({ ...p, email: "このメールアドレスはすでに登録されています" }));
+      setLoading(false);
+      return;
+    }
+
+    // 写真アップロード
     let photo_url: string | null = null;
     if (photo) {
       const ext = photo.name.split(".").pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, photo, { contentType: photo.type });
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, photo, { contentType: photo.type });
       if (!uploadError) {
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(fileName);
         photo_url = urlData.publicUrl;
@@ -83,11 +90,11 @@ export default function ApplyPage() {
     }
 
     const { error } = await supabase.from("dealer_applications").insert({
-      name, experience_years: parseInt(exp),
+      name, email, password_hash: password,
+      experience_years: parseInt(exp),
       game_types: games, areas, venue_type: venue,
       hourly_rate: parseInt(rate), bio, tags,
-      photo_url,
-      status: "pending", is_active: true,
+      photo_url, status: "pending", is_active: true, photo_visible: true,
     });
     setLoading(false);
     if (error) { alert("送信に失敗しました。もう一度お試しください。"); return; }
@@ -99,10 +106,11 @@ export default function ApplyPage() {
       <main style={{ minHeight: "100dvh", background: "#F8F8F8", display: "flex", alignItems: "center", justifyContent: "center", padding: 32 }}>
         <div style={{ textAlign: "center", maxWidth: 280 }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
-          <h2 style={{ fontSize: 18, fontWeight: 400, color: "#0A0A0A", marginBottom: 8, letterSpacing: 1 }}>申請を受け付けました</h2>
-          <p style={{ fontSize: 14, color: "#999", lineHeight: 1.7, marginBottom: 28 }}>管理者が確認後、掲載されます。</p>
-          <Link href="/" style={{ display: "block", padding: 14, background: "#0A0A0A", color: "#fff", borderRadius: 2, fontSize: 12, textAlign: "center", textDecoration: "none", letterSpacing: 3, textTransform: "uppercase" }}>
-            Top Page
+          <h2 style={{ fontSize: 18, fontWeight: 400, color: "#0A0A0A", marginBottom: 8 }}>申請を受け付けました</h2>
+          <p style={{ fontSize: 14, color: "#999", lineHeight: 1.7, marginBottom: 8 }}>管理者が確認後、掲載されます。</p>
+          <p style={{ fontSize: 13, color: "#999", lineHeight: 1.7, marginBottom: 28 }}>承認後は登録したメールアドレスとパスワードでログインしてプロフィールを編集できます。</p>
+          <Link href="/" style={{ display: "block", padding: 14, background: "#0A0A0A", color: "#fff", borderRadius: 2, fontSize: 12, textAlign: "center", textDecoration: "none", letterSpacing: 2 }}>
+            トップに戻る
           </Link>
         </div>
       </main>
@@ -123,46 +131,47 @@ export default function ApplyPage() {
     <main style={{ minHeight: "100dvh", background: "#F8F8F8", paddingBottom: 40 }}>
       <header style={{ background: "#0A0A0A", padding: "16px" }}>
         <div style={{ fontSize: 16, fontWeight: 300, color: "#fff", letterSpacing: 4, textTransform: "uppercase" }}>GODILLA</div>
-        <div style={{ fontSize: 10, color: "#666", marginTop: 3, letterSpacing: 3 }}>DEALER APPLICATION</div>
+        <div style={{ fontSize: 10, color: "#666", marginTop: 3, letterSpacing: 3 }}>ディーラー登録申請</div>
       </header>
 
       <div style={{ padding: "16px" }}>
 
-        {/* 写真アップロード */}
+        {/* 写真 */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>プロフィール写真（任意）</div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div
-              onClick={() => fileRef.current?.click()}
-              style={{
-                width: 80, height: 80, borderRadius: 2,
-                background: photoPreview ? "transparent" : "#F0F0F0",
-                border: "0.5px solid #E8E8E8",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", overflow: "hidden", flexShrink: 0,
-              }}
-            >
+            <div onClick={() => fileRef.current?.click()} style={{ width: 80, height: 80, borderRadius: 2, background: photoPreview ? "transparent" : "#F0F0F0", border: "0.5px solid #E8E8E8", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden", flexShrink: 0 }}>
               {photoPreview ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={photoPreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                  <circle cx="16" cy="12" r="7" fill="#CCCCCC" />
-                  <ellipse cx="16" cy="26" rx="11" ry="7" fill="#CCCCCC" />
-                </svg>
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="12" r="7" fill="#CCCCCC" /><ellipse cx="16" cy="26" rx="11" ry="7" fill="#CCCCCC" /></svg>
               )}
             </div>
             <div>
-              <button onClick={() => fileRef.current?.click()}
-                style={{ padding: "8px 16px", background: "#0A0A0A", color: "#fff", border: "none", borderRadius: 2, fontSize: 12, cursor: "pointer", letterSpacing: 1, display: "block", marginBottom: 6 }}>
-                写真を選ぶ
-              </button>
+              <button onClick={() => fileRef.current?.click()} style={{ padding: "8px 16px", background: "#0A0A0A", color: "#fff", border: "none", borderRadius: 2, fontSize: 12, cursor: "pointer", display: "block", marginBottom: 6 }}>写真を選ぶ</button>
               <p style={{ fontSize: 11, color: "#999" }}>JPG・PNG・5MB以下</p>
               {photo && <p style={{ fontSize: 11, color: "#0A0A0A", marginTop: 4 }}>✓ {photo.name}</p>}
             </div>
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
           {errors.photo && <p style={errStyle}>{errors.photo}</p>}
+        </div>
+
+        {/* アカウント情報 */}
+        <div style={sectionStyle}>
+          <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>アカウント情報</div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>メールアドレス <span style={{ color: "#E24B4A" }}>*</span></label>
+            <input type="email" placeholder="example@gmail.com" value={email} onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: "" })); }} style={inputStyle} />
+            <p style={{ fontSize: 11, color: "#999", marginTop: 3 }}>承認後のログインに使用します</p>
+            {errors.email && <p style={errStyle}>{errors.email}</p>}
+          </div>
+          <div>
+            <label style={labelStyle}>パスワード <span style={{ color: "#E24B4A" }}>*</span></label>
+            <input type="password" placeholder="6文字以上" value={password} onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: "" })); }} style={inputStyle} />
+            {errors.password && <p style={errStyle}>{errors.password}</p>}
+          </div>
         </div>
 
         {/* 基本情報 */}
@@ -195,7 +204,7 @@ export default function ApplyPage() {
           </div>
         </div>
 
-        {/* ゲーム種別 */}
+        {/* ゲーム */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>対応ゲーム <span style={{ color: "#E24B4A" }}>*</span></div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -204,7 +213,7 @@ export default function ApplyPage() {
           {errors.games && <p style={errStyle}>{errors.games}</p>}
         </div>
 
-        {/* 対応エリア */}
+        {/* エリア */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>対応エリア <span style={{ color: "#E24B4A" }}>*</span></div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -221,7 +230,7 @@ export default function ApplyPage() {
           </div>
         </div>
 
-        {/* プロフィール */}
+        {/* 自己紹介 */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>プロフィール</div>
           <label style={labelStyle}>自己紹介 <span style={{ color: "#E24B4A" }}>*</span></label>
@@ -229,8 +238,8 @@ export default function ApplyPage() {
           {errors.bio && <p style={errStyle}>{errors.bio}</p>}
         </div>
 
-        <button onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: 15, background: loading ? "#999" : "#0A0A0A", color: "#fff", border: "none", borderRadius: 2, fontSize: 12, cursor: loading ? "not-allowed" : "pointer", letterSpacing: 3, textTransform: "uppercase" }}>
-          {loading ? "Sending..." : "Submit Application"}
+        <button onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: 15, background: loading ? "#999" : "#0A0A0A", color: "#fff", border: "none", borderRadius: 2, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", letterSpacing: 1 }}>
+          {loading ? "送信中..." : "申請を送信する"}
         </button>
       </div>
     </main>
