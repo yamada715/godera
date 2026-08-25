@@ -1,16 +1,16 @@
-// app/page.tsx — トップ検索画面
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GAME_TYPES, type GameType } from "@/lib/dealers";
 
-const NAVY   = "#0E2A45";
-const PANEL  = "#163B5E";
-const BORDER = "#1E5280";
-const MUTED  = "#6FA3C8";
-const ICON   = "#1A4A72";
-const ACCENT = "#F5A623";
+const BLACK  = "#0A0A0A";
+const WHITE  = "#FFFFFF";
+const GRAY1  = "#F5F5F5";
+const GRAY2  = "#E8E8E8";
+const GRAY3  = "#999999";
+const GRAY4  = "#333333";
+const ACCENT = "#0A0A0A";
 
 const AREAS = ["エリアを選択","大阪市内","神戸市内","京都市内","堺市","尼崎市","西宮市","奈良市","和歌山市","指定なし"];
 
@@ -38,146 +38,174 @@ export default function TopPage() {
     router.push(`/dealers?${params.toString()}`);
   }
 
-  const rowStyle: React.CSSProperties = {
-    borderBottom: `0.5px solid #1A4A72`,
-    padding: "12px 14px",
-  };
-  const labelStyle: React.CSSProperties = {
-    fontSize: 11, color: MUTED, marginBottom: 4,
-  };
   const inputStyle: React.CSSProperties = {
     width: "100%", background: "transparent", border: "none",
-    outline: "none", fontSize: 14, color: "#fff",
+    outline: "none", fontSize: 14, color: WHITE,
+    fontFamily: "inherit",
+  };
+
+  const rowStyle: React.CSSProperties = {
+    borderBottom: `0.5px solid #2A2A2A`,
+    padding: "14px 16px",
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+  };
+
+  const iconBox: React.CSSProperties = {
+    width: 32, height: 32, borderRadius: 6,
+    background: "#1A1A1A",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    flexShrink: 0, fontSize: 15,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 10, color: GRAY3, marginBottom: 3, letterSpacing: ".08em", textTransform: "uppercase",
   };
 
   return (
-    <main style={{ minHeight: "100dvh", background: NAVY, paddingBottom: 40, maxWidth: 480, margin: "0 auto" }}>
+    <main style={{ minHeight: "100dvh", background: BLACK, paddingBottom: 40, maxWidth: 480, margin: "0 auto" }}>
 
       {/* ヘッダー */}
-      <header style={{ padding: "18px 16px 10px" }}>
-        <div style={{ fontSize: 24, fontWeight: 500, color: "#fff", letterSpacing: -0.5 }}>GODILLA</div>
-        <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>ポーカーディーラー予約</div>
+      <header style={{ padding: "28px 20px 16px" }}>
+        <div style={{ fontSize: 28, fontWeight: 300, color: WHITE, letterSpacing: 6, textTransform: "uppercase" }}>
+          GODILLA
+        </div>
+        <div style={{ fontSize: 11, color: GRAY3, marginTop: 4, letterSpacing: 3 }}>
+          POKER DEALER BOOKING
+        </div>
       </header>
 
       {/* バナー */}
       <div style={{
-        margin: "0 12px 16px", borderRadius: 12, background: "#1A4A72",
-        padding: "14px 16px", border: `0.5px solid ${BORDER}`,
-        display: "flex", alignItems: "center", gap: 10,
+        margin: "0 16px 20px",
+        borderRadius: 2,
+        background: "#111111",
+        padding: "14px 16px",
+        border: `0.5px solid #2A2A2A`,
+        display: "flex", alignItems: "center", gap: 12,
       }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 8, background: ACCENT,
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18,
-        }}>🃏</div>
-        <div style={{ fontSize: 13, color: "#fff", lineHeight: 1.5 }}>
-          <span style={{ color: ACCENT, fontWeight: 500 }}>40名のディーラー</span>が在籍中。今すぐ予約できます。
+        <div style={{ fontSize: 20 }}>🃏</div>
+        <div style={{ fontSize: 13, color: GRAY3, lineHeight: 1.6 }}>
+          <span style={{ color: WHITE, fontWeight: 400 }}>40名のディーラー</span>が在籍中
         </div>
       </div>
 
       {/* 検索フォーム */}
-      <div style={{ margin: "0 12px", background: PANEL, borderRadius: 16, border: `0.5px solid ${BORDER}`, overflow: "hidden" }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#A8C8E0", padding: "14px 14px 4px" }}>
-          条件を指定して検索
+      <div style={{
+        margin: "0 16px",
+        background: "#111111",
+        borderRadius: 2,
+        border: `0.5px solid #2A2A2A`,
+        overflow: "hidden",
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 400, color: GRAY3, padding: "14px 16px 4px", letterSpacing: ".1em", textTransform: "uppercase" }}>
+          Search Dealers
         </div>
 
         {/* エリア */}
         <div style={rowStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: ICON, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15 }}>📍</div>
-            <div style={{ flex: 1 }}>
-              <div style={labelStyle}>エリア</div>
-              <select value={area} onChange={(e) => setArea(e.target.value)}
-                style={{ ...inputStyle, color: area ? "#fff" : "#4A7A9B" }}>
-                {AREAS.map((a) => <option key={a} value={a === "エリアを選択" ? "" : a} style={{ background: PANEL }}>{a}</option>)}
-              </select>
-            </div>
+          <div style={iconBox}>📍</div>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>エリア</div>
+            <select value={area} onChange={(e) => setArea(e.target.value)}
+              style={{ ...inputStyle, color: area ? WHITE : GRAY3 }}>
+              {AREAS.map((a) => <option key={a} value={a === "エリアを選択" ? "" : a} style={{ background: "#111" }}>{a}</option>)}
+            </select>
           </div>
         </div>
 
         {/* 日時 */}
         <div style={rowStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: ICON, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15 }}>📅</div>
-            <div style={{ flex: 1 }}>
-              <div style={labelStyle}>日時</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                  style={{ ...inputStyle, colorScheme: "dark", width: "auto", flex: 1 }} />
-                <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
-                  style={{ ...inputStyle, colorScheme: "dark", width: "auto", flex: 1 }} />
-              </div>
+          <div style={iconBox}>📅</div>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>日時</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                style={{ ...inputStyle, colorScheme: "dark", width: "auto", flex: 1 }} />
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
+                style={{ ...inputStyle, colorScheme: "dark", width: "auto", flex: 1 }} />
             </div>
           </div>
         </div>
 
         {/* 場所 */}
         <div style={rowStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: ICON, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15 }}>🏠</div>
-            <div style={{ flex: 1 }}>
-              <div style={labelStyle}>場所（住所・施設名）</div>
-              <input type="text" placeholder="例: 大阪市北区梅田〇〇" value={location}
-                onChange={(e) => setLocation(e.target.value)} style={inputStyle} />
-            </div>
+          <div style={iconBox}>🏠</div>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>場所</div>
+            <input type="text" placeholder="住所・施設名" value={location}
+              onChange={(e) => setLocation(e.target.value)} style={{ ...inputStyle, "::placeholder": { color: GRAY3 } } as React.CSSProperties} />
           </div>
         </div>
 
-        {/* ゲーム種別（チェックボックス） */}
+        {/* ゲーム種別 */}
         <div style={rowStyle}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: ICON, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, marginTop: 2 }}>🃏</div>
-            <div style={{ flex: 1 }}>
-              <div style={labelStyle}>ゲーム種別</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
-                {GAME_TYPES.map((g) => (
-                  <label key={g} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={games.includes(g)}
-                      onChange={() => toggleGame(g)}
-                      style={{ width: 16, height: 16, accentColor: ACCENT }}
-                    />
-                    <span style={{ fontSize: 13, color: games.includes(g) ? ACCENT : "#A8C8E0", fontWeight: games.includes(g) ? 500 : 400 }}>{g}</span>
-                  </label>
-                ))}
-              </div>
+          <div style={iconBox}>🃏</div>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>ゲーム種別</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+              {GAME_TYPES.map((g) => (
+                <label key={g} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={games.includes(g)}
+                    onChange={() => toggleGame(g)}
+                    style={{ width: 14, height: 14, accentColor: WHITE }}
+                  />
+                  <span style={{ fontSize: 13, color: games.includes(g) ? WHITE : GRAY3 }}>{g}</span>
+                </label>
+              ))}
             </div>
           </div>
         </div>
 
         {/* フリーワード */}
         <div style={{ ...rowStyle, borderBottom: "none" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: ICON, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15 }}>🔍</div>
-            <div style={{ flex: 1 }}>
-              <div style={labelStyle}>フリーワード</div>
-              <input type="text" placeholder="名前・特徴など" value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                style={inputStyle} />
-            </div>
+          <div style={iconBox}>🔍</div>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>フリーワード</div>
+            <input type="text" placeholder="名前・特徴など" value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              style={inputStyle} />
           </div>
         </div>
 
         {/* 検索ボタン */}
         <button onClick={handleSearch} style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          margin: "14px", width: "calc(100% - 28px)",
-          padding: "13px", background: ACCENT, color: NAVY,
-          borderRadius: 10, fontSize: 15, fontWeight: 500,
-          border: "none", cursor: "pointer",
+          margin: "16px",
+          width: "calc(100% - 32px)",
+          padding: "14px",
+          background: WHITE,
+          color: BLACK,
+          borderRadius: 2,
+          fontSize: 13,
+          fontWeight: 500,
+          border: "none",
+          cursor: "pointer",
+          letterSpacing: 2,
+          textTransform: "uppercase",
         }}>
-          🔍 ディーラーを検索
+          Search
         </button>
       </div>
 
       {/* 今すぐボタン */}
       <button onClick={() => router.push("/dealers")} style={{
         display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-        padding: "16px", fontSize: 14, color: ACCENT,
-        background: "none", border: "none", cursor: "pointer", width: "100%",
+        padding: "18px 16px",
+        fontSize: 12,
+        color: GRAY3,
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        width: "100%",
+        letterSpacing: 2,
+        textTransform: "uppercase",
       }}>
-        ⚡ 今すぐ呼べるディーラーはこちら
+        View All Dealers →
       </button>
     </main>
   );

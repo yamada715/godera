@@ -44,6 +44,83 @@ function formatDate(dateStr: string) {
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
+function RequestCard({ req, onReply, onComplete, onRestore }: {
+  req: Request;
+  onReply?: (id: string, text: string) => void;
+  onComplete?: (id: string) => void;
+  onRestore?: (id: string) => void;
+}) {
+  const [replyText, setReplyText] = useState("");
+  const isCompleted = req.status === "completed";
+  const isPending   = req.status === "pending";
+
+  return (
+    <div style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10, opacity: isCompleted ? 0.8 : 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A" }}>{req.dealer_name}</div>
+        <span style={{
+          fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 500,
+          background: isCompleted ? "#F1EFE8" : isPending ? "#FAEEDA" : "#EAF3DE",
+          color: isCompleted ? "#888780" : isPending ? "#633806" : "#3B6D11",
+        }}>
+          {isCompleted ? "完了" : isPending ? "未返信" : "返信済"}
+        </span>
+      </div>
+
+      <div style={{ fontSize: 11, color: "#888780", marginBottom: 6 }}>📅 送信: {formatDate(req.created_at)}</div>
+      <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>日時: {req.date} {req.start_time}〜{req.end_time}（{req.hours}時間）</div>
+      <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>場所: {req.location}</div>
+      <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>
+        メール: <a href={`mailto:${req.email}`} style={{ color: "#0E2A45" }}>{req.email}</a>
+      </div>
+      <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: req.note ? 8 : 0 }}>料金目安: ¥{req.total_fee.toLocaleString()}</div>
+
+      {/* メモ */}
+      {req.note && (
+        <div style={{ fontSize: 13, color: "#2C2C2A", lineHeight: 1.6, marginBottom: 10, background: "#F9F9F7", borderRadius: 8, padding: "8px 10px" }}>
+          📝 {req.note}
+        </div>
+      )}
+
+      {/* 返信内容 */}
+      {req.admin_reply && (
+        <div style={{ fontSize: 12, color: "#3B6D11", background: "#EAF3DE", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
+          返信内容: {req.admin_reply}
+        </div>
+      )}
+
+      {/* 返信フォーム（未返信のみ） */}
+      {isPending && onReply && (
+        <div style={{ marginBottom: 8 }}>
+          <textarea rows={2} placeholder="返信内容を入力..." value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            style={{ width: "100%", padding: "8px 10px", fontSize: 13, borderRadius: 8, border: "0.5px solid #D3D1C7", outline: "none", resize: "none", marginBottom: 8 }} />
+          <button onClick={() => { onReply(req.id, replyText); setReplyText(""); }}
+            style={{ width: "100%", padding: "8px", background: "#0E2A45", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", marginBottom: 6 }}>
+            返信する
+          </button>
+        </div>
+      )}
+
+      {/* 完了済みに移動ボタン */}
+      {!isCompleted && onComplete && (
+        <button onClick={() => onComplete(req.id)}
+          style={{ width: "100%", padding: "8px", background: "#F1EFE8", color: "#5F5E5A", border: "0.5px solid #D3D1C7", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
+          完了済みに移動
+        </button>
+      )}
+
+      {/* 依頼に戻すボタン（完了済みのみ） */}
+      {isCompleted && onRestore && (
+        <button onClick={() => onRestore(req.id)}
+          style={{ width: "100%", padding: "8px", background: "#E6F1FB", color: "#185FA5", border: "0.5px solid #A8CFF5", borderRadius: 8, fontSize: 12, cursor: "pointer", marginTop: 8 }}>
+          ↩ 依頼に戻す
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [authed, setAuthed]   = useState(false);
   const [pw, setPw]           = useState("");
@@ -52,7 +129,6 @@ export default function AdminPage() {
   const [apps, setApps]       = useState<Application[]>([]);
   const [reqs, setReqs]       = useState<Request[]>([]);
   const [loading, setLoading] = useState(false);
-  const [reply, setReply]     = useState<Record<string, string>>({});
 
   async function loadData() {
     setLoading(true);
@@ -72,17 +148,20 @@ export default function AdminPage() {
     setApps((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
   }
 
-  async function sendReply(id: string) {
-    const text = reply[id] || "";
+  async function sendReply(id: string, text: string) {
     if (!text.trim()) return;
     await supabase.from("requests").update({ status: "replied", admin_reply: text }).eq("id", id);
     setReqs((prev) => prev.map((r) => r.id === id ? { ...r, status: "replied", admin_reply: text } : r));
-    setReply((prev) => ({ ...prev, [id]: "" }));
   }
 
   async function completeRequest(id: string) {
     await supabase.from("requests").update({ status: "completed" }).eq("id", id);
     setReqs((prev) => prev.map((r) => r.id === id ? { ...r, status: "completed" } : r));
+  }
+
+  async function restoreRequest(id: string) {
+    await supabase.from("requests").update({ status: "pending" }).eq("id", id);
+    setReqs((prev) => prev.map((r) => r.id === id ? { ...r, status: "pending" } : r));
   }
 
   if (!authed) {
@@ -105,10 +184,9 @@ export default function AdminPage() {
     );
   }
 
-  const pendingApps = apps.filter((a) => a.status === "pending");
-  const doneApps    = apps.filter((a) => a.status !== "pending");
-  const pendingReqs = reqs.filter((r) => r.status === "pending");
-  const repliedReqs = reqs.filter((r) => r.status === "replied");
+  const pendingApps   = apps.filter((a) => a.status === "pending");
+  const doneApps      = apps.filter((a) => a.status !== "pending");
+  const activeReqs    = reqs.filter((r) => r.status !== "completed");
   const completedReqs = reqs.filter((r) => r.status === "completed");
 
   return (
@@ -123,11 +201,10 @@ export default function AdminPage() {
         </button>
       </header>
 
-      {/* タブ */}
       <div style={{ display: "flex", background: "#fff", borderBottom: "0.5px solid #D3D1C7", overflowX: "auto" }}>
         {[
           { key: "applications", label: `申請 (${pendingApps.length})` },
-          { key: "requests",     label: `依頼 (${pendingReqs.length + repliedReqs.length})` },
+          { key: "requests",     label: `依頼 (${activeReqs.length})` },
           { key: "done",         label: `完了済 (${completedReqs.length + doneApps.length})` },
         ].map(({ key, label }) => (
           <button key={key} onClick={() => setTab(key as typeof tab)} style={{
@@ -175,44 +252,10 @@ export default function AdminPage() {
         {/* 依頼タブ */}
         {!loading && tab === "requests" && (
           <div>
-            {pendingReqs.length === 0 && repliedReqs.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>未対応の依頼はありません</div>}
-            {[...pendingReqs, ...repliedReqs].map((req) => {
-              const isPending = req.status === "pending";
-              return (
-                <div key={req.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A" }}>{req.dealer_name}</div>
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: isPending ? "#FAEEDA" : "#EAF3DE", color: isPending ? "#633806" : "#3B6D11", fontWeight: 500 }}>
-                      {isPending ? "未返信" : "返信済"}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#888780", marginBottom: 6 }}>📅 送信: {formatDate(req.created_at)}</div>
-                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>日時: {req.date} {req.start_time}〜{req.end_time}（{req.hours}時間）</div>
-                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>場所: {req.location}</div>
-                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>
-                    メール: <a href={`mailto:${req.email}`} style={{ color: "#0E2A45" }}>{req.email}</a>
-                  </div>
-                  <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 8 }}>料金目安: ¥{req.total_fee.toLocaleString()}</div>
-                  {req.note && <div style={{ fontSize: 13, color: "#2C2C2A", lineHeight: 1.6, marginBottom: 10, background: "#F9F9F7", borderRadius: 8, padding: "8px 10px" }}>{req.note}</div>}
-                  {req.admin_reply && (
-                    <div style={{ fontSize: 12, color: "#3B6D11", background: "#EAF3DE", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>返信内容: {req.admin_reply}</div>
-                  )}
-                  {isPending && (
-                    <div style={{ marginBottom: 8 }}>
-                      <textarea rows={2} placeholder="返信内容を入力..." value={reply[req.id] || ""}
-                        onChange={(e) => setReply((prev) => ({ ...prev, [req.id]: e.target.value }))}
-                        style={{ width: "100%", padding: "8px 10px", fontSize: 13, borderRadius: 8, border: "0.5px solid #D3D1C7", outline: "none", resize: "none", marginBottom: 8 }} />
-                      <button onClick={() => sendReply(req.id)} style={{ width: "100%", padding: "8px", background: "#0E2A45", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-                        返信する
-                      </button>
-                    </div>
-                  )}
-                  <button onClick={() => completeRequest(req.id)} style={{ width: "100%", padding: "8px", background: "#F1EFE8", color: "#5F5E5A", border: "0.5px solid #D3D1C7", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
-                    完了済みに移動
-                  </button>
-                </div>
-              );
-            })}
+            {activeReqs.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>未対応の依頼はありません</div>}
+            {activeReqs.map((req) => (
+              <RequestCard key={req.id} req={req} onReply={sendReply} onComplete={completeRequest} />
+            ))}
           </div>
         )}
 
@@ -225,17 +268,7 @@ export default function AdminPage() {
               <>
                 <div style={{ fontSize: 11, fontWeight: 500, color: "#888780", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}>完了済み依頼</div>
                 {completedReqs.map((req) => (
-                  <div key={req.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10, opacity: 0.7 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: "#2C2C2A" }}>{req.dealer_name}</div>
-                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#F1EFE8", color: "#888780", fontWeight: 500 }}>完了</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>📅 送信: {formatDate(req.created_at)}</div>
-                    <div style={{ fontSize: 12, color: "#5F5E5A" }}>日時: {req.date} {req.start_time}〜{req.end_time}</div>
-                    <div style={{ fontSize: 12, color: "#5F5E5A" }}>場所: {req.location}</div>
-                    <div style={{ fontSize: 12, color: "#5F5E5A" }}>メール: <a href={`mailto:${req.email}`} style={{ color: "#0E2A45" }}>{req.email}</a></div>
-<div style={{ fontSize: 12, color: "#5F5E5A" }}>料金: ¥{req.total_fee.toLocaleString()}</div>
-<div style={{ fontSize: 12, color: "#5F5E5A" }}>メール: <a href={`mailto:${req.email}`} style={{ color: "#0E2A45" }}>{req.email}</a></div>                  </div>
+                  <RequestCard key={req.id} req={req} onRestore={restoreRequest} />
                 ))}
               </>
             )}

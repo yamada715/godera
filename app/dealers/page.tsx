@@ -1,21 +1,25 @@
-// app/dealers/page.tsx — ディーラー一覧（2列・縦スクロール）
 "use client";
 
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
-import { DEALERS, VENUE_LABEL, VENUE_STYLE, GAME_TYPES, type VenueType, type GameType } from "@/lib/dealers";
+import { DEALERS, GAME_TYPES, type VenueType, type GameType } from "@/lib/dealers";
 import { DealerCard } from "@/components/DealerCard";
 import { useState } from "react";
+
+const BLACK = "#0A0A0A";
+const WHITE = "#FFFFFF";
+const GRAY1 = "#F5F5F5";
+const GRAY2 = "#E8E8E8";
+const GRAY3 = "#999999";
 
 function DealerListInner() {
   const searchParams = useSearchParams();
   const initGames = (searchParams.get("games") || "").split(",").filter(Boolean) as GameType[];
-  const initVenue = (searchParams.get("venue") || "all") as VenueType | "all";
   const initQ     = searchParams.get("q") || "";
 
-  const [keyword, setKeyword]     = useState(initQ);
-  const [venueFilter, setVenueFilter] = useState<VenueType | "all">(initVenue);
+  const [keyword, setKeyword]       = useState(initQ);
+  const [venueFilter, setVenueFilter] = useState<VenueType | "all">("all");
   const [gameFilter, setGameFilter]   = useState<GameType[]>(initGames);
 
   function toggleGame(g: GameType) {
@@ -39,81 +43,80 @@ function DealerListInner() {
   });
 
   return (
-    <main style={{ minHeight: "100dvh", background: "#F1EFE8", paddingBottom: 32 }}>
+    <main style={{ minHeight: "100dvh", background: "#F8F8F8", paddingBottom: 32 }}>
 
       {/* ヘッダー */}
       <header style={{
-        background: "#FFFFFF", borderBottom: "0.5px solid #D3D1C7",
-        padding: "12px 16px", display: "flex", alignItems: "center",
-        justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10,
+        background: BLACK,
+        padding: "12px 16px",
+        display: "flex", alignItems: "center",
+        justifyContent: "space-between",
+        position: "sticky", top: 0, zIndex: 10,
       }}>
         <Link href="/" style={{
           display: "flex", alignItems: "center", justifyContent: "center",
-          width: 32, height: 32, borderRadius: 8,
-          background: "#0E2A45", color: "#fff", textDecoration: "none", fontSize: 16,
+          width: 32, height: 32, borderRadius: 2,
+          background: "#1A1A1A", color: WHITE, textDecoration: "none", fontSize: 16,
+          border: "0.5px solid #333",
         }} aria-label="トップに戻る">‹</Link>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A" }}>ディーラーを選ぶ</div>
-          <div style={{ fontSize: 11, color: "#888780" }}>{filtered.length}名表示中</div>
+          <div style={{ fontSize: 11, fontWeight: 400, color: WHITE, letterSpacing: 3, textTransform: "uppercase" }}>Dealers</div>
+          <div style={{ fontSize: 10, color: "#666" }}>{filtered.length}名</div>
         </div>
         <div style={{ width: 32 }} />
       </header>
 
-      {/* フィルターエリア */}
-      <div style={{ background: "#fff", borderBottom: "0.5px solid #D3D1C7", padding: "10px 12px" }}>
-
-        {/* フリーワード */}
+      {/* フィルター */}
+      <div style={{ background: WHITE, borderBottom: "0.5px solid #E8E8E8", padding: "10px 12px" }}>
         <input type="text" placeholder="名前・エリアで検索..." value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           style={{
             width: "100%", padding: "8px 12px", fontSize: 13,
-            borderRadius: 8, border: "0.5px solid #D3D1C7",
-            background: "#F9F9F7", color: "#2C2C2A", outline: "none", marginBottom: 8,
+            borderRadius: 2, border: "0.5px solid #E8E8E8",
+            background: "#F5F5F5", color: BLACK, outline: "none", marginBottom: 8,
           }} />
 
-        {/* 種別フィルター */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           {(["all", "home", "amusement"] as const).map((v) => (
             <button key={v} onClick={() => setVenueFilter(v)} style={{
-              fontSize: 12, padding: "4px 12px", borderRadius: 20, cursor: "pointer",
+              fontSize: 11, padding: "4px 12px", borderRadius: 2, cursor: "pointer",
               border: "0.5px solid",
-              background: venueFilter === v ? "#0E2A45" : "transparent",
-              color: venueFilter === v ? "#fff" : "#5F5E5A",
-              borderColor: venueFilter === v ? "#0E2A45" : "#D3D1C7",
-              fontWeight: venueFilter === v ? 500 : 400,
+              background: venueFilter === v ? BLACK : "transparent",
+              color: venueFilter === v ? WHITE : "#666",
+              borderColor: venueFilter === v ? BLACK : "#E8E8E8",
+              letterSpacing: 1,
             }}>
-              {{ all: "すべて", home: "個人宅", amusement: "アミューズ" }[v]}
+              {{ all: "ALL", home: "HOME", amusement: "AMUSE" }[v]}
             </button>
           ))}
         </div>
 
-        {/* ゲームフィルター */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {GAME_TYPES.map((g) => (
             <button key={g} onClick={() => toggleGame(g)} style={{
-              fontSize: 12, padding: "4px 12px", borderRadius: 20, cursor: "pointer",
+              fontSize: 11, padding: "4px 12px", borderRadius: 2, cursor: "pointer",
               border: "0.5px solid",
-              background: gameFilter.includes(g) ? "#F5A623" : "transparent",
-              color: gameFilter.includes(g) ? "#0E2A45" : "#5F5E5A",
-              borderColor: gameFilter.includes(g) ? "#F5A623" : "#D3D1C7",
-              fontWeight: gameFilter.includes(g) ? 500 : 400,
+              background: gameFilter.includes(g) ? BLACK : "transparent",
+              color: gameFilter.includes(g) ? WHITE : "#666",
+              borderColor: gameFilter.includes(g) ? BLACK : "#E8E8E8",
+              letterSpacing: 1,
             }}>{g}</button>
           ))}
         </div>
       </div>
 
-      {/* 2列グリッド（縦スクロール） */}
+      {/* グリッド */}
       {filtered.length > 0 ? (
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr",
-          gap: 10, padding: "10px 12px 0",
+          gap: 8, padding: "10px 10px 0",
         }}>
           {filtered.map((dealer) => (
             <DealerCard key={dealer.id} dealer={dealer} />
           ))}
         </div>
       ) : (
-        <div style={{ textAlign: "center", padding: "60px 20px", fontSize: 14, color: "#888780" }}>
+        <div style={{ textAlign: "center", padding: "60px 20px", fontSize: 13, color: GRAY3, letterSpacing: 1 }}>
           該当するディーラーが見つかりませんでした
         </div>
       )}
@@ -123,7 +126,7 @@ function DealerListInner() {
 
 export default function DealersPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 32, textAlign: "center", color: "#888780" }}>読み込み中...</div>}>
+    <Suspense fallback={<div style={{ padding: 32, textAlign: "center", color: "#999" }}>読み込み中...</div>}>
       <DealerListInner />
     </Suspense>
   );
