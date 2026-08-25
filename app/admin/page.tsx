@@ -18,6 +18,7 @@ type Application = {
   status: string;
   is_active: boolean;
   photo_url?: string;
+  photo_visible: boolean;
   created_at: string;
 };
 
@@ -136,6 +137,11 @@ export default function AdminPage() {
     setApps((prev) => prev.map((a) => a.id === id ? { ...a, is_active: !current } : a));
   }
 
+  async function togglePhotoVisible(id: string, current: boolean) {
+    await supabase.from("dealer_applications").update({ photo_visible: !current }).eq("id", id);
+    setApps((prev) => prev.map((a) => a.id === id ? { ...a, photo_visible: !current } : a));
+  }
+
   async function sendReply(id: string, text: string) {
     if (!text.trim()) return;
     await supabase.from("requests").update({ status: "replied", admin_reply: text }).eq("id", id);
@@ -218,7 +224,6 @@ export default function AdminPage() {
         {/* 申請タブ */}
         {!loading && tab === "applications" && (
           <div>
-            {/* 審査中 */}
             {pendingApps.length === 0 && approvedApps.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>申請はありません</div>}
             {pendingApps.map((app) => (
               <div key={app.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10 }}>
@@ -227,6 +232,10 @@ export default function AdminPage() {
                   <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#FAEEDA", color: "#633806", fontWeight: 500 }}>審査中</span>
                 </div>
                 <div style={{ fontSize: 11, color: "#888780", marginBottom: 6 }}>📅 {formatDate(app.created_at)}</div>
+                {app.photo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={app.photo_url} alt={app.name} style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 8, marginBottom: 8, border: "0.5px solid #D3D1C7" }} />
+                )}
                 <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h ・ {VENUE_LABEL[app.venue_type]}</div>
                 <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>ゲーム: {app.game_types.join(", ")}</div>
                 <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 8 }}>エリア: {app.areas.join(", ")}</div>
@@ -238,30 +247,51 @@ export default function AdminPage() {
               </div>
             ))}
 
-            {/* 承認済み（表示/非表示管理） */}
             {approvedApps.length > 0 && (
               <>
                 <div style={{ fontSize: 11, fontWeight: 500, color: "#888780", letterSpacing: ".06em", textTransform: "uppercase", margin: "16px 0 8px" }}>承認済みディーラー</div>
                 {approvedApps.map((app) => (
                   <div key={app.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10, opacity: app.is_active ? 1 : 0.6 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A" }}>{app.name}</div>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
+                      {app.photo_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={app.photo_url} alt={app.name}
+                          style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: "0.5px solid #D3D1C7", opacity: app.photo_visible ? 1 : 0.3, flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A", marginBottom: 2 }}>{app.name}</div>
+                        <div style={{ fontSize: 12, color: "#5F5E5A" }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h</div>
+                      </div>
                       <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: app.is_active ? "#EAF3DE" : "#F1EFE8", color: app.is_active ? "#3B6D11" : "#888780", fontWeight: 500 }}>
                         {app.is_active ? "表示中" : "非表示"}
                       </span>
                     </div>
-                    <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 8 }}>
-                      経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h ・ {VENUE_LABEL[app.venue_type]}
+
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {/* 表示/非表示 */}
+                      <button onClick={() => toggleActive(app.id, app.is_active)} style={{
+                        flex: 1, padding: "7px", minWidth: 120,
+                        background: app.is_active ? "#FCEBEB" : "#EAF3DE",
+                        color: app.is_active ? "#A32D2D" : "#3B6D11",
+                        border: `0.5px solid ${app.is_active ? "#F09595" : "#C0DD97"}`,
+                        borderRadius: 8, fontSize: 12, cursor: "pointer",
+                      }}>
+                        {app.is_active ? "⏸ 非表示にする" : "▶ 表示に戻す"}
+                      </button>
+
+                      {/* 写真の表示/非表示（写真がある場合のみ） */}
+                      {app.photo_url && (
+                        <button onClick={() => togglePhotoVisible(app.id, app.photo_visible)} style={{
+                          flex: 1, padding: "7px", minWidth: 120,
+                          background: app.photo_visible ? "#FAEEDA" : "#E6F1FB",
+                          color: app.photo_visible ? "#854F0B" : "#185FA5",
+                          border: `0.5px solid ${app.photo_visible ? "#F5CC8A" : "#A8CFF5"}`,
+                          borderRadius: 8, fontSize: 12, cursor: "pointer",
+                        }}>
+                          {app.photo_visible ? "🚫 写真を非表示" : "📷 写真を表示"}
+                        </button>
+                      )}
                     </div>
-                    <button onClick={() => toggleActive(app.id, app.is_active)} style={{
-                      width: "100%", padding: "8px",
-                      background: app.is_active ? "#FCEBEB" : "#EAF3DE",
-                      color: app.is_active ? "#A32D2D" : "#3B6D11",
-                      border: `0.5px solid ${app.is_active ? "#F09595" : "#C0DD97"}`,
-                      borderRadius: 8, fontSize: 12, cursor: "pointer",
-                    }}>
-                      {app.is_active ? "⏸ 非表示にする" : "▶ 表示に戻す"}
-                    </button>
                   </div>
                 ))}
               </>
@@ -317,18 +347,13 @@ export default function AdminPage() {
                 <button onClick={addTag} style={{ padding: "8px 16px", background: "#0E2A45", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>追加</button>
               </div>
             </div>
-
             <div style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px" }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "#2C2C2A", marginBottom: 10 }}>
-                登録済みタグ（{tagList.length}件）
-              </div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "#2C2C2A", marginBottom: 10 }}>登録済みタグ（{tagList.length}件）</div>
               {tagList.length === 0 && <div style={{ fontSize: 13, color: "#888780" }}>タグがありません</div>}
               {tagList.map((tag) => (
                 <div key={tag.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "0.5px solid #F1EFE8" }}>
                   <span style={{ fontSize: 13, color: "#2C2C2A" }}>{tag.name}</span>
-                  <button onClick={() => deleteTag(tag.id)} style={{ padding: "4px 10px", background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>
-                    削除
-                  </button>
+                  <button onClick={() => deleteTag(tag.id)} style={{ padding: "4px 10px", background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>削除</button>
                 </div>
               ))}
             </div>
