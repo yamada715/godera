@@ -23,6 +23,7 @@ export interface DealerRow {
   status: string;
   is_active: boolean;
   photo_url?: string;
+  photo_visible: boolean;
   created_at: string;
 }
 
