@@ -52,8 +52,8 @@ function formatDate(dateStr: string) {
 function DealerModal({ app, onClose, onApprove, onReject, onTogglePhoto }: {
   app: Application;
   onClose: () => void;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onApprove: (id: string, status: string) => void;
+  onReject: (id: string, status: string) => void;
   onTogglePhoto: (id: string, current: boolean) => void;
 }) {
   return (
