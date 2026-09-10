@@ -1,46 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 
 const ADMIN_PASSWORD = "godilla2024";
+const GAME_TYPES = ["NLH", "Omaha", "Stud", "Draw", "Hi-Lo"];
+const VENUE_LABEL: Record<string, string> = { home: "個人宅", amusement: "アミューズ", both: "両方対応" };
 
 type Application = {
-  id: string;
-  name: string;
-  experience_years: number;
-  game_types: string[];
-  areas: string[];
-  venue_type: string;
-  hourly_rate: number;
-  bio: string;
-  tags: string[];
-  status: string;
-  is_active: boolean;
-  photo_url?: string;
-  photo_visible: boolean;
-  email?: string;
-  created_at: string;
+  id: string; name: string; experience_years: number;
+  game_types: string[]; areas: string[]; venue_type: string;
+  hourly_rate: number; bio: string; tags: string[];
+  status: string; is_active: boolean;
+  photo_url?: string; photo_visible: boolean;
+  email?: string; created_at: string;
 };
 
 type Request = {
-  id: string;
-  dealer_name: string;
-  date: string;
-  start_time: string;
-  end_time: string;
-  location: string;
-  email: string;
-  note: string;
-  hours: number;
-  total_fee: number;
-  status: string;
-  admin_reply: string;
-  created_at: string;
-};
-
-const VENUE_LABEL: Record<string, string> = {
-  home: "個人宅", amusement: "アミューズ", both: "両方対応",
+  id: string; dealer_name: string; date: string;
+  start_time: string; end_time: string; location: string;
+  email: string; note: string; hours: number;
+  total_fee: number; status: string; admin_reply: string; created_at: string;
 };
 
 function formatDate(dateStr: string) {
@@ -48,109 +28,159 @@ function formatDate(dateStr: string) {
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-// ディーラー詳細モーダル
-function DealerModal({ app, onClose, onApprove, onReject, onTogglePhoto }: {
+// ディーラー編集モーダル
+function DealerEditModal({ app, tagOptions, areaOptions, onClose, onSave, onApprove, onReject, onTogglePhoto }: {
   app: Application;
+  tagOptions: string[];
+  areaOptions: string[];
   onClose: () => void;
+  onSave: (id: string, data: Partial<Application>, photoFile?: File) => Promise<void>;
   onApprove: (id: string, status: string) => void;
   onReject: (id: string, status: string) => void;
   onTogglePhoto: (id: string, current: boolean) => void;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [name, setName]     = useState(app.name);
+  const [exp, setExp]       = useState(String(app.experience_years));
+  const [rate, setRate]     = useState(String(app.hourly_rate));
+  const [venue, setVenue]   = useState(app.venue_type);
+  const [games, setGames]   = useState<string[]>(app.game_types);
+  const [areas, setAreas]   = useState<string[]>(app.areas);
+  const [tags, setTags]     = useState<string[]>(app.tags || []);
+  const [bio, setBio]       = useState(app.bio);
+  const [photo, setPhoto]   = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  function toggleGame(g: string) { setGames((p) => p.includes(g) ? p.filter((x) => x !== g) : [...p, g]); }
+  function toggleArea(a: string) { setAreas((p) => p.includes(a) ? p.filter((x) => x !== a) : [...p, a]); }
+  function toggleTag(t: string)  { setTags((p)  => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]); }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhoto(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave(app.id, {
+      name, experience_years: parseInt(exp), hourly_rate: parseInt(rate),
+      venue_type: venue, game_types: games, areas, tags, bio,
+    }, photo || undefined);
+    setSaving(false);
+    onClose();
+  }
+
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", fontSize: 13, borderRadius: 8, border: "0.5px solid #D3D1C7", outline: "none" };
+  const labelStyle: React.CSSProperties = { fontSize: 10, color: "#888780", marginBottom: 4, display: "block", letterSpacing: 1, textTransform: "uppercase" };
+  const toggleBtn = (active: boolean): React.CSSProperties => ({
+    padding: "4px 10px", fontSize: 11, borderRadius: 20, cursor: "pointer",
+    border: "0.5px solid", background: active ? "#0E2A45" : "transparent",
+    color: active ? "#fff" : "#5F5E5A", borderColor: active ? "#0E2A45" : "#D3D1C7",
+  });
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: "12px 12px 0 0", width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", padding: "20px 16px 40px" }} onClick={(e) => e.stopPropagation()}>
-        {/* ヘッダー */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 500, color: "#2C2C2A" }}>{app.name}</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "#2C2C2A" }}>{app.name} の編集</div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#888780" }}>✕</button>
         </div>
 
         {/* 写真 */}
-        {app.photo_url && (
-          <div style={{ marginBottom: 16, position: "relative" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={app.photo_url} alt={app.name} style={{ width: "100%", height: 200, objectFit: "cover", borderRadius: 8, opacity: app.photo_visible ? 1 : 0.3 }} />
-            {!app.photo_visible && (
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)", borderRadius: 8 }}>
-                <span style={{ color: "#fff", fontSize: 13 }}>写真非表示中</span>
-              </div>
-            )}
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>プロフィール写真</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div onClick={() => fileRef.current?.click()} style={{ width: 64, height: 64, borderRadius: 8, background: "#F0F0F0", border: "0.5px solid #D3D1C7", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden", flexShrink: 0 }}>
+              {photoPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoPreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : app.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={app.photo_url} alt={app.name} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: app.photo_visible ? 1 : 0.3 }} />
+              ) : (
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="10" r="6" fill="#CCC" /><ellipse cx="14" cy="22" rx="10" ry="6" fill="#CCC" /></svg>
+              )}
+            </div>
+            <div>
+              <button onClick={() => fileRef.current?.click()} style={{ padding: "6px 12px", background: "#0E2A45", color: "#fff", border: "none", borderRadius: 6, fontSize: 11, cursor: "pointer", display: "block", marginBottom: 4 }}>写真を変更</button>
+              {app.photo_url && (
+                <button onClick={() => onTogglePhoto(app.id, app.photo_visible)} style={{ padding: "4px 10px", background: app.photo_visible ? "#FAEEDA" : "#E6F1FB", color: app.photo_visible ? "#854F0B" : "#185FA5", border: "none", borderRadius: 6, fontSize: 10, cursor: "pointer" }}>
+                  {app.photo_visible ? "写真を非表示" : "写真を表示"}
+                </button>
+              )}
+            </div>
           </div>
-        )}
+          <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
+        </div>
 
         {/* 基本情報 */}
-        <div style={{ background: "#F9F9F7", borderRadius: 8, padding: "12px 14px", marginBottom: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {[
-              { label: "経験年数",   value: `${app.experience_years}年` },
-              { label: "時給",       value: `¥${app.hourly_rate.toLocaleString()}` },
-              { label: "対応種別",   value: VENUE_LABEL[app.venue_type] },
-              { label: "メール",     value: app.email || "未登録" },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <div style={{ fontSize: 10, color: "#888780", marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 13, color: "#2C2C2A" }}>{value}</div>
-              </div>
-            ))}
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>氏名</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>経験年数</label>
+            <input type="number" min="0" max="30" value={exp} onChange={(e) => setExp(e.target.value)} style={inputStyle} />
           </div>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>時給（円）</label>
+            <input type="number" min="1000" step="500" value={rate} onChange={(e) => setRate(e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>対応種別</label>
+          <select value={venue} onChange={(e) => setVenue(e.target.value)} style={inputStyle}>
+            <option value="home">個人宅</option>
+            <option value="amusement">アミューズメント施設</option>
+            <option value="both">両方対応</option>
+          </select>
         </div>
 
         {/* ゲーム */}
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>対応ゲーム</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>対応ゲーム</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {app.game_types.map((g) => <span key={g} style={{ fontSize: 12, padding: "2px 8px", borderRadius: 20, background: "#F1EFE8", color: "#2C2C2A", border: "0.5px solid #D3D1C7" }}>{g}</span>)}
+            {GAME_TYPES.map((g) => <button key={g} onClick={() => toggleGame(g)} style={toggleBtn(games.includes(g))}>{g}</button>)}
           </div>
         </div>
 
         {/* エリア */}
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>対応エリア</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>対応エリア</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {app.areas.map((a) => <span key={a} style={{ fontSize: 12, padding: "2px 8px", borderRadius: 20, background: "#F1EFE8", color: "#2C2C2A", border: "0.5px solid #D3D1C7" }}>{a}</span>)}
+            {areaOptions.map((a) => <button key={a} onClick={() => toggleArea(a)} style={toggleBtn(areas.includes(a))}>{a}</button>)}
           </div>
         </div>
 
         {/* タグ */}
-        {app.tags && app.tags.length > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>特徴タグ</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {app.tags.map((t) => <span key={t} style={{ fontSize: 12, padding: "2px 8px", borderRadius: 20, background: "#E6F1FB", color: "#185FA5", border: "0.5px solid #A8CFF5" }}>{t}</span>)}
-            </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>特徴タグ</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {tagOptions.map((t) => <button key={t} onClick={() => toggleTag(t)} style={toggleBtn(tags.includes(t))}>{t}</button>)}
           </div>
-        )}
+        </div>
 
         {/* 自己紹介 */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>自己紹介</div>
-          <div style={{ fontSize: 13, color: "#2C2C2A", lineHeight: 1.7, background: "#F9F9F7", borderRadius: 8, padding: "10px 12px" }}>{app.bio}</div>
+          <label style={labelStyle}>自己紹介</label>
+          <textarea rows={4} value={bio} onChange={(e) => setBio(e.target.value)} style={{ ...inputStyle, resize: "none" }} />
         </div>
 
-        <div style={{ fontSize: 11, color: "#888780", marginBottom: 12 }}>📅 申請日: {formatDate(app.created_at)}</div>
-
-        {/* アクションボタン */}
+        {/* 承認・却下ボタン（審査中のみ） */}
         {app.status === "pending" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <button onClick={() => { onApprove(app.id); onClose(); }} style={{ width: "100%", padding: "10px", background: "#EAF3DE", color: "#3B6D11", border: "0.5px solid #C0DD97", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-              ✓ 承認する
-            </button>
-            <button onClick={() => { onReject(app.id); onClose(); }} style={{ width: "100%", padding: "10px", background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-              ✗ 却下する
-            </button>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <button onClick={() => { onApprove(app.id, "approved"); onClose(); }} style={{ flex: 1, padding: "10px", background: "#EAF3DE", color: "#3B6D11", border: "0.5px solid #C0DD97", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>✓ 承認する</button>
+            <button onClick={() => { onReject(app.id, "rejected"); onClose(); }} style={{ flex: 1, padding: "10px", background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>✗ 却下する</button>
           </div>
         )}
-        {app.status === "approved" && app.photo_url && (
-          <button onClick={() => onTogglePhoto(app.id, app.photo_visible)} style={{
-            width: "100%", padding: "10px",
-            background: app.photo_visible ? "#FAEEDA" : "#E6F1FB",
-            color: app.photo_visible ? "#854F0B" : "#185FA5",
-            border: `0.5px solid ${app.photo_visible ? "#F5CC8A" : "#A8CFF5"}`,
-            borderRadius: 8, fontSize: 13, cursor: "pointer",
-          }}>
-            {app.photo_visible ? "🚫 写真を非表示にする" : "📷 写真を表示する"}
-          </button>
-        )}
+
+        <button onClick={handleSave} disabled={saving} style={{ width: "100%", padding: 12, background: saving ? "#999" : "#0E2A45", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: saving ? "not-allowed" : "pointer" }}>
+          {saving ? "保存中..." : "変更を保存する"}
+        </button>
       </div>
     </div>
   );
@@ -181,24 +211,17 @@ function RequestCard({ req, onMemo, onComplete, onRestore }: {
       <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: 2 }}>メール: <a href={`mailto:${req.email}`} style={{ color: "#0E2A45" }}>{req.email}</a></div>
       <div style={{ fontSize: 12, color: "#5F5E5A", marginBottom: req.note ? 8 : 0 }}>料金目安: ¥{req.total_fee.toLocaleString()}</div>
       {req.note && <div style={{ fontSize: 13, color: "#2C2C2A", lineHeight: 1.6, marginBottom: 10, background: "#F9F9F7", borderRadius: 8, padding: "8px 10px" }}>📝 {req.note}</div>}
-
-      {/* メモ欄 */}
+      {req.admin_reply && <div style={{ fontSize: 12, color: "#5F5E5A", background: "#F9F9F7", borderRadius: 8, padding: "8px 10px", marginBottom: 8 }}>📋 メモ: {req.admin_reply}</div>}
       {!isCompleted && onMemo && (
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>メモ</div>
-          <textarea rows={2} placeholder="内部メモを入力..." value={memoText}
-            onChange={(e) => setMemoText(e.target.value)}
+          <textarea rows={2} placeholder="内部メモを入力..." value={memoText} onChange={(e) => setMemoText(e.target.value)}
             style={{ width: "100%", padding: "8px 10px", fontSize: 13, borderRadius: 8, border: "0.5px solid #D3D1C7", outline: "none", resize: "none", marginBottom: 6 }} />
-          <button onClick={() => onMemo(req.id, memoText)}
-            style={{ width: "100%", padding: "7px", background: "#F1EFE8", color: "#5F5E5A", border: "0.5px solid #D3D1C7", borderRadius: 8, fontSize: 12, cursor: "pointer", marginBottom: 6 }}>
+          <button onClick={() => onMemo(req.id, memoText)} style={{ width: "100%", padding: "7px", background: "#F1EFE8", color: "#5F5E5A", border: "0.5px solid #D3D1C7", borderRadius: 8, fontSize: 12, cursor: "pointer", marginBottom: 6 }}>
             メモを保存
           </button>
         </div>
       )}
-      {req.admin_reply && !memoText && (
-        <div style={{ fontSize: 12, color: "#5F5E5A", background: "#F9F9F7", borderRadius: 8, padding: "8px 10px", marginBottom: 8 }}>📋 メモ: {req.admin_reply}</div>
-      )}
-
       {!isCompleted && onComplete && (
         <button onClick={() => onComplete(req.id)} style={{ width: "100%", padding: "8px", background: "#EAF3DE", color: "#3B6D11", border: "0.5px solid #C0DD97", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
           完了済みに移動
@@ -217,28 +240,30 @@ export default function AdminPage() {
   const [authed, setAuthed]       = useState(false);
   const [pw, setPw]               = useState("");
   const [pwError, setPwError]     = useState("");
-  const [tab, setTab]             = useState<"applications" | "requests" | "done" | "tags">("applications");
+  const [tab, setTab]             = useState<"applications" | "requests" | "done" | "areas" | "tags">("applications");
   const [apps, setApps]           = useState<Application[]>([]);
   const [reqs, setReqs]           = useState<Request[]>([]);
   const [tagList, setTagList]     = useState<{ id: string; name: string }[]>([]);
+  const [areaList, setAreaList]   = useState<{ id: string; name: string }[]>([]);
   const [newTag, setNewTag]       = useState("");
+  const [newArea, setNewArea]     = useState("");
   const [loading, setLoading]     = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
-
-  // 完了済みソート・検索
   const [doneSort, setDoneSort]   = useState<"date" | "name">("date");
   const [doneSearch, setDoneSearch] = useState("");
 
   async function loadData() {
     setLoading(true);
-    const [{ data: a }, { data: r }, { data: t }] = await Promise.all([
+    const [{ data: a }, { data: r }, { data: t }, { data: ar }] = await Promise.all([
       supabase.from("dealer_applications").select("*").order("created_at", { ascending: false }),
       supabase.from("requests").select("*").order("created_at", { ascending: false }),
       supabase.from("tags").select("*").order("name"),
+      supabase.from("areas").select("*").order("name"),
     ]);
     setApps(a || []);
     setReqs(r || []);
     setTagList(t || []);
+    setAreaList(ar || []);
     setLoading(false);
   }
 
@@ -257,7 +282,22 @@ export default function AdminPage() {
   async function togglePhotoVisible(id: string, current: boolean) {
     await supabase.from("dealer_applications").update({ photo_visible: !current }).eq("id", id);
     setApps((prev) => prev.map((a) => a.id === id ? { ...a, photo_visible: !current } : a));
-    if (selectedApp?.id === id) setSelectedApp((prev) => prev ? { ...prev, photo_visible: !current } : null);
+    setSelectedApp((prev) => prev && prev.id === id ? { ...prev, photo_visible: !current } : prev);
+  }
+
+  async function saveDealer(id: string, data: Partial<Application>, photoFile?: File) {
+    let photo_url = apps.find((a) => a.id === id)?.photo_url;
+    if (photoFile) {
+      const ext = photoFile.name.split(".").pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("avatars").upload(fileName, photoFile, { contentType: photoFile.type });
+      if (!error) {
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(fileName);
+        photo_url = urlData.publicUrl;
+      }
+    }
+    await supabase.from("dealer_applications").update({ ...data, photo_url }).eq("id", id);
+    setApps((prev) => prev.map((a) => a.id === id ? { ...a, ...data, photo_url } : a));
   }
 
   async function saveMemo(id: string, text: string) {
@@ -288,6 +328,19 @@ export default function AdminPage() {
     setTagList((prev) => prev.filter((t) => t.id !== id));
   }
 
+  async function addArea() {
+    const name = newArea.trim();
+    if (!name) return;
+    const { data } = await supabase.from("areas").insert({ name }).select().single();
+    if (data) setAreaList((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+    setNewArea("");
+  }
+
+  async function deleteArea(id: string) {
+    await supabase.from("areas").delete().eq("id", id);
+    setAreaList((prev) => prev.filter((a) => a.id !== id));
+  }
+
   if (!authed) {
     return (
       <main style={{ minHeight: "100dvh", background: "#0E2A45", display: "flex", alignItems: "center", justifyContent: "center", padding: 32 }}>
@@ -313,22 +366,21 @@ export default function AdminPage() {
   const rejectedApps  = apps.filter((a) => a.status === "rejected");
   const activeReqs    = reqs.filter((r) => r.status !== "completed");
   const completedReqs = reqs.filter((r) => r.status === "completed");
-
-  // 完了済みフィルター・ソート
   const filteredDoneReqs = completedReqs
     .filter((r) => !doneSearch || r.dealer_name.includes(doneSearch) || r.location.includes(doneSearch) || r.email.includes(doneSearch))
-    .sort((a, b) => doneSort === "name"
-      ? a.dealer_name.localeCompare(b.dealer_name)
-      : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    .sort((a, b) => doneSort === "name" ? a.dealer_name.localeCompare(b.dealer_name) : new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const areaNames = areaList.map((a) => a.name);
 
   return (
     <main style={{ minHeight: "100dvh", background: "#F1EFE8", paddingBottom: 40 }}>
-      {/* モーダル */}
       {selectedApp && (
-        <DealerModal
+        <DealerEditModal
           app={selectedApp}
+          tagOptions={tagList.map((t) => t.name)}
+          areaOptions={areaNames.length > 0 ? areaNames : ["大阪市内", "神戸市内", "京都市内", "堺市", "尼崎市", "西宮市", "奈良市", "和歌山市"]}
           onClose={() => setSelectedApp(null)}
+          onSave={saveDealer}
           onApprove={updateAppStatus}
           onReject={updateAppStatus}
           onTogglePhoto={togglePhotoVisible}
@@ -348,9 +400,10 @@ export default function AdminPage() {
           { key: "applications", label: `申請 (${pendingApps.length})` },
           { key: "requests",     label: `依頼 (${activeReqs.length})` },
           { key: "done",         label: `完了済 (${completedReqs.length})` },
+          { key: "areas",        label: `エリア管理` },
           { key: "tags",         label: `タグ管理` },
         ].map(({ key, label }) => (
-          <button key={key} onClick={() => setTab(key as typeof tab)} style={{ flex: 1, padding: "12px 8px", fontSize: 12, whiteSpace: "nowrap", fontWeight: tab === key ? 500 : 400, color: tab === key ? "#0E2A45" : "#888780", background: "none", border: "none", borderBottom: tab === key ? "2px solid #0E2A45" : "2px solid transparent", cursor: "pointer" }}>{label}</button>
+          <button key={key} onClick={() => setTab(key as typeof tab)} style={{ flex: 1, padding: "12px 6px", fontSize: 11, whiteSpace: "nowrap", fontWeight: tab === key ? 500 : 400, color: tab === key ? "#0E2A45" : "#888780", background: "none", border: "none", borderBottom: tab === key ? "2px solid #0E2A45" : "2px solid transparent", cursor: "pointer" }}>{label}</button>
         ))}
       </div>
 
@@ -361,48 +414,54 @@ export default function AdminPage() {
         {!loading && tab === "applications" && (
           <div>
             {pendingApps.length === 0 && approvedApps.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>申請はありません</div>}
-
-            {/* 審査中 */}
             {pendingApps.length > 0 && (
               <>
                 <div style={{ fontSize: 11, fontWeight: 500, color: "#888780", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}>審査中</div>
                 {pendingApps.map((app) => (
-                  <div key={app.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10, cursor: "pointer" }}
-                    onClick={() => setSelectedApp(app)}>
+                  <div key={app.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10, cursor: "pointer" }} onClick={() => setSelectedApp(app)}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        {app.photo_url && (
+                        {app.photo_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={app.photo_url} alt={app.name} style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, border: "0.5px solid #D3D1C7" }} />
+                        ) : (
+                          <div style={{ width: 40, height: 40, borderRadius: 6, background: "#F0F0F0", border: "0.5px solid #D3D1C7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" fill="#CCC" /><ellipse cx="10" cy="16" rx="7" ry="4" fill="#CCC" /></svg>
+                          </div>
                         )}
                         <div>
-                          <div style={{ fontSize: 15, fontWeight: 500, color: "#0E2A45", textDecoration: "underline" }}>{app.name}</div>
-                          <div style={{ fontSize: 12, color: "#5F5E5A" }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h</div>
+                          <div style={{ fontSize: 14, fontWeight: 500, color: "#0E2A45", textDecoration: "underline" }}>{app.name}</div>
+                          <div style={{ fontSize: 11, color: "#5F5E5A" }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h</div>
                         </div>
                       </div>
                       <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#FAEEDA", color: "#633806", fontWeight: 500 }}>審査中</span>
                     </div>
-                    <div style={{ fontSize: 11, color: "#888780", marginTop: 6 }}>📅 {formatDate(app.created_at)} ・ タップして詳細を見る →</div>
+                    <div style={{ fontSize: 11, color: "#888780", marginTop: 6 }}>📅 {formatDate(app.created_at)} · タップして編集・承認</div>
                   </div>
                 ))}
               </>
             )}
 
-            {/* 承認済み */}
             {approvedApps.length > 0 && (
               <>
                 <div style={{ fontSize: 11, fontWeight: 500, color: "#888780", letterSpacing: ".06em", textTransform: "uppercase", margin: "16px 0 8px" }}>承認済みディーラー</div>
                 {approvedApps.map((app) => (
                   <div key={app.id} style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 10, opacity: app.is_active ? 1 : 0.6 }}>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
-                      {app.photo_url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={app.photo_url} alt={app.name} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: "0.5px solid #D3D1C7", opacity: app.photo_visible ? 1 : 0.3, flexShrink: 0, cursor: "pointer" }}
-                          onClick={() => setSelectedApp(app)} />
-                      )}
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 10 }}>
+                      <div onClick={() => setSelectedApp(app)} style={{ cursor: "pointer", flexShrink: 0 }}>
+                        {app.photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={app.photo_url} alt={app.name} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: "0.5px solid #D3D1C7", opacity: app.photo_visible ? 1 : 0.3 }} />
+                        ) : (
+                          <div style={{ width: 48, height: 48, borderRadius: 8, background: "#F0F0F0", border: "0.5px solid #D3D1C7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="5" fill="#CCC" /><ellipse cx="12" cy="19" rx="8" ry="5" fill="#CCC" /></svg>
+                          </div>
+                        )}
+                      </div>
                       <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setSelectedApp(app)}>
-                        <div style={{ fontSize: 15, fontWeight: 500, color: "#0E2A45", textDecoration: "underline" }}>{app.name}</div>
-                        <div style={{ fontSize: 12, color: "#5F5E5A" }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: "#0E2A45", textDecoration: "underline" }}>{app.name}</div>
+                        <div style={{ fontSize: 11, color: "#5F5E5A" }}>経験{app.experience_years}年 ・ ¥{app.hourly_rate.toLocaleString()}/h ・ {VENUE_LABEL[app.venue_type]}</div>
+                        <div style={{ fontSize: 10, color: "#888780", marginTop: 2 }}>タップして編集</div>
                       </div>
                       <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: app.is_active ? "#EAF3DE" : "#F1EFE8", color: app.is_active ? "#3B6D11" : "#888780", fontWeight: 500 }}>
                         {app.is_active ? "表示中" : "非表示"}
@@ -436,25 +495,17 @@ export default function AdminPage() {
         {/* 完了済みタブ */}
         {!loading && tab === "done" && (
           <div>
-            {/* 検索・ソート */}
             <div style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "12px", marginBottom: 12 }}>
               <input type="text" placeholder="ディーラー名・場所・メールで検索..." value={doneSearch}
                 onChange={(e) => setDoneSearch(e.target.value)}
                 style={{ width: "100%", padding: "8px 12px", fontSize: 13, borderRadius: 8, border: "0.5px solid #D3D1C7", outline: "none", marginBottom: 8 }} />
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => setDoneSort("date")} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 8, border: "0.5px solid", background: doneSort === "date" ? "#0E2A45" : "transparent", color: doneSort === "date" ? "#fff" : "#5F5E5A", borderColor: doneSort === "date" ? "#0E2A45" : "#D3D1C7", cursor: "pointer" }}>
-                  日付順
-                </button>
-                <button onClick={() => setDoneSort("name")} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 8, border: "0.5px solid", background: doneSort === "name" ? "#0E2A45" : "transparent", color: doneSort === "name" ? "#fff" : "#5F5E5A", borderColor: doneSort === "name" ? "#0E2A45" : "#D3D1C7", cursor: "pointer" }}>
-                  名前順
-                </button>
+                <button onClick={() => setDoneSort("date")} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 8, border: "0.5px solid", background: doneSort === "date" ? "#0E2A45" : "transparent", color: doneSort === "date" ? "#fff" : "#5F5E5A", borderColor: doneSort === "date" ? "#0E2A45" : "#D3D1C7", cursor: "pointer" }}>日付順</button>
+                <button onClick={() => setDoneSort("name")} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 8, border: "0.5px solid", background: doneSort === "name" ? "#0E2A45" : "transparent", color: doneSort === "name" ? "#fff" : "#5F5E5A", borderColor: doneSort === "name" ? "#0E2A45" : "#D3D1C7", cursor: "pointer" }}>名前順</button>
               </div>
             </div>
-
             {filteredDoneReqs.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#888780" }}>完了済みの依頼はありません</div>}
             {filteredDoneReqs.map((req) => <RequestCard key={req.id} req={req} onRestore={restoreRequest} />)}
-
-            {/* 却下済み申請 */}
             {rejectedApps.length > 0 && (
               <>
                 <div style={{ fontSize: 11, fontWeight: 500, color: "#888780", letterSpacing: ".06em", textTransform: "uppercase", margin: "16px 0 8px" }}>却下済み申請</div>
@@ -469,6 +520,32 @@ export default function AdminPage() {
                 ))}
               </>
             )}
+          </div>
+        )}
+
+        {/* エリア管理タブ */}
+        {!loading && tab === "areas" && (
+          <div>
+            <div style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "#2C2C2A", marginBottom: 10 }}>エリアを追加</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="text" placeholder="新しいエリア名" value={newArea}
+                  onChange={(e) => setNewArea(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addArea()}
+                  style={{ flex: 1, padding: "8px 12px", fontSize: 13, borderRadius: 8, border: "0.5px solid #D3D1C7", outline: "none" }} />
+                <button onClick={addArea} style={{ padding: "8px 16px", background: "#0E2A45", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>追加</button>
+              </div>
+            </div>
+            <div style={{ background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, padding: "14px" }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "#2C2C2A", marginBottom: 10 }}>登録済みエリア（{areaList.length}件）</div>
+              {areaList.length === 0 && <div style={{ fontSize: 13, color: "#888780" }}>エリアがありません</div>}
+              {areaList.map((area) => (
+                <div key={area.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "0.5px solid #F1EFE8" }}>
+                  <span style={{ fontSize: 13, color: "#2C2C2A" }}>{area.name}</span>
+                  <button onClick={() => deleteArea(area.id)} style={{ padding: "4px 10px", background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>削除</button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
