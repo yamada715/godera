@@ -13,7 +13,7 @@ type Application = {
   hourly_rate: number; bio: string; tags: string[];
   status: string; is_active: boolean;
   photo_url?: string; photo_visible: boolean;
-  email?: string; created_at: string;
+  email?: string; phone?: string; created_at: string;
 };
 
 type Request = {

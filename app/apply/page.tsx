@@ -7,6 +7,7 @@ import { supabase, GAME_TYPES, type GameType } from "@/lib/supabase";
 export default function ApplyPage() {
   const [name, setName]             = useState("");
   const [email, setEmail]           = useState("");
+  const [phone, setPhone]           = useState("");
   const [password, setPassword]     = useState("");
   const [exp, setExp]               = useState("");
   const [games, setGames]           = useState<GameType[]>([]);
@@ -54,6 +55,7 @@ export default function ApplyPage() {
     if (!name)              e.name     = "名前を入力してください";
     if (!email)             e.email    = "メールアドレスを入力してください";
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "正しいメールアドレスを入力してください";
+    if (!phone)             e.phone    = "電話番号を入力してください";
     if (!password)          e.password = "パスワードを入力してください";
     if (password.length < 6) e.password = "パスワードは6文字以上にしてください";
     if (!exp)               e.exp      = "経験年数を入力してください";
@@ -89,7 +91,7 @@ export default function ApplyPage() {
     }
 
     const { error } = await supabase.from("dealer_applications").insert({
-      name, email, password_hash: password,
+      name, email, phone, password_hash: password,
       experience_years: parseInt(exp),
       game_types: games, areas, venue_type: venue,
       hourly_rate: parseInt(rate), bio, tags,
@@ -164,6 +166,12 @@ export default function ApplyPage() {
             <input type="email" placeholder="example@gmail.com" value={email} onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: "" })); }} style={inputStyle} />
             <p style={{ fontSize: 11, color: "#999", marginTop: 3 }}>承認後のログインに使用します</p>
             {errors.email && <p style={errStyle}>{errors.email}</p>}
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>電話番号 <span style={{ color: "#E24B4A" }}>*</span></label>
+            <input type="tel" placeholder="090-0000-0000" value={phone} onChange={(e) => { setPhone(e.target.value); setErrors((p) => ({ ...p, phone: "" })); }} style={inputStyle} />
+            <p style={{ fontSize: 11, color: "#999", marginTop: 3 }}>管理者のみに公開されます</p>
+            {errors.phone && <p style={errStyle}>{errors.phone}</p>}
           </div>
           <div>
             <label style={labelStyle}>パスワード <span style={{ color: "#E24B4A" }}>*</span></label>
