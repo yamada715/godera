@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 
-const ADMIN_PASSWORD = "godilla2024";
+
 const GAME_TYPES = ["NLH", "Omaha", "Stud", "Draw", "Hi-Lo"];
 const VENUE_LABEL: Record<string, string> = { home: "個人宅", amusement: "アミューズ", both: "両方対応" };
 
@@ -115,7 +115,7 @@ function DealerEditModal({ app, tagOptions, areaOptions, onClose, onSave, onAppr
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
         </div>
-
+自己紹介
         {/* 基本情報 */}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>氏名</label>
@@ -354,10 +354,10 @@ export default function AdminPage() {
           <div style={{ fontSize: 12, color: "#888780", marginBottom: 20 }}>GODILLA Admin</div>
           <input type="password" placeholder="パスワード" value={pw}
             onChange={(e) => { setPw(e.target.value); setPwError(""); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { if (pw === ADMIN_PASSWORD) setAuthed(true); else setPwError("パスワードが違います"); } }}
+            onKeyDown={(e) => { if (e.key === "Enter") { fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) }).then((r) => r.json()).then((d) => { if (d.success) setAuthed(true); else setPwError("パスワードが違います"); }); } }}
             style={{ width: "100%", padding: "10px 12px", fontSize: 14, borderRadius: 8, border: "0.5px solid #D3D1C7", outline: "none", marginBottom: 8 }} />
           {pwError && <p style={{ fontSize: 11, color: "#E24B4A", marginBottom: 8 }}>{pwError}</p>}
-          <button onClick={() => { if (pw === ADMIN_PASSWORD) setAuthed(true); else setPwError("パスワードが違います"); }}
+          <button onClick={() => { fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) }).then((r) => r.json()).then((d) => { if (d.success) setAuthed(true); else setPwError("パスワードが違います"); }); }}
             style={{ width: "100%", padding: 12, background: "#0E2A45", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: "pointer" }}>
             ログイン
           </button>
