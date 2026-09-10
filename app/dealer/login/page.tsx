@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
-
 const BLACK = "#0A0A0A";
 const WHITE = "#FFFFFF";
 const GRAY3 = "#999999";
@@ -21,22 +19,16 @@ export default function DealerLoginPage() {
     setLoading(true);
     setError("");
 
-    const { data, error: err } = await supabase
-      .from("dealer_applications")
-      .select("*")
-      .eq("email", email)
-      .eq("password_hash", password)
-      .single();
-
+    const res = await fetch("/api/dealer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
     setLoading(false);
 
-    if (err || !data) {
-      setError("メールアドレスまたはパスワードが違います");
-      return;
-    }
-
-    if (data.status !== "approved") {
-      setError("まだ承認されていません。管理者の承認をお待ちください。");
+    if (!data.success) {
+      setError(data.message || "メールアドレスまたはパスワードが違います");
       return;
     }
 

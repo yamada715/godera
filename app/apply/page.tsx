@@ -90,8 +90,16 @@ export default function ApplyPage() {
       }
     }
 
+    // パスワードをハッシュ化
+    const hashRes = await fetch("/api/dealer", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const { hash } = await hashRes.json();
+
     const { error } = await supabase.from("dealer_applications").insert({
-      name, email, phone, password_hash: password,
+      name, email, phone, password_hash: hash,
       experience_years: parseInt(exp),
       game_types: games, areas, venue_type: venue,
       hourly_rate: parseInt(rate), bio, tags,
