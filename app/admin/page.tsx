@@ -163,7 +163,12 @@ function DealerEditModal({ app, tagOptions, areaOptions, onClose, onSave, onAppr
             {tagOptions.map((t) => <button key={t} onClick={() => toggleTag(t)} style={toggleBtn(tags.includes(t))}>{t}</button>)}
           </div>
         </div>
-
+        {/* メール・電話番号 */}
+        <div style={{ marginBottom: 12, background: "#F9F9F7", borderRadius: 8, padding: "10px 12px" }}>
+          <div style={{ fontSize: 10, color: "#888780", marginBottom: 6, letterSpacing: 1, textTransform: "uppercase" }}>連絡先（管理者のみ）</div>
+          <div style={{ fontSize: 13, color: "#2C2C2A", marginBottom: 4 }}>📧 {app.email || "未登録"}</div>
+          <div style={{ fontSize: 13, color: "#2C2C2A" }}>📞 {app.phone || "未登録"}</div>
+        </div>
         {/* 自己紹介 */}
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>自己紹介</label>
