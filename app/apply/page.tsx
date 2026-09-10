@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { supabase, GAME_TYPES, AREAS, type GameType } from "@/lib/supabase";
+import { supabase, GAME_TYPES, type GameType } from "@/lib/supabase";
 
 export default function ApplyPage() {
   const [name, setName]             = useState("");
@@ -16,6 +16,7 @@ export default function ApplyPage() {
   const [bio, setBio]               = useState("");
   const [tags, setTags]             = useState<string[]>([]);
   const [tagOptions, setTagOptions] = useState<string[]>([]);
+  const [areaOptions, setAreaOptions] = useState<string[]>([]);
   const [photo, setPhoto]           = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [submitted, setSubmitted]   = useState(false);
@@ -24,11 +25,15 @@ export default function ApplyPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    async function loadTags() {
-      const { data } = await supabase.from("tags").select("name").order("name");
-      setTagOptions((data || []).map((t: { name: string }) => t.name));
+    async function loadOptions() {
+      const [{ data: t }, { data: a }] = await Promise.all([
+        supabase.from("tags").select("name").order("name"),
+        supabase.from("areas").select("name").order("name"),
+      ]);
+      setTagOptions((t || []).map((x: { name: string }) => x.name));
+      setAreaOptions((a || []).map((x: { name: string }) => x.name));
     }
-    loadTags();
+    loadOptions();
   }, []);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -65,19 +70,13 @@ export default function ApplyPage() {
     if (Object.keys(e).length > 0) { setErrors(e); return; }
     setLoading(true);
 
-    // メールアドレスの重複チェック
-    const { data: existing } = await supabase
-      .from("dealer_applications")
-      .select("id")
-      .eq("email", email)
-      .single();
+    const { data: existing } = await supabase.from("dealer_applications").select("id").eq("email", email).single();
     if (existing) {
       setErrors((p) => ({ ...p, email: "このメールアドレスはすでに登録されています" }));
       setLoading(false);
       return;
     }
 
-    // 写真アップロード
     let photo_url: string | null = null;
     if (photo) {
       const ext = photo.name.split(".").pop();
@@ -135,7 +134,6 @@ export default function ApplyPage() {
       </header>
 
       <div style={{ padding: "16px" }}>
-
         {/* 写真 */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>プロフィール写真（任意）</div>
@@ -213,12 +211,16 @@ export default function ApplyPage() {
           {errors.games && <p style={errStyle}>{errors.games}</p>}
         </div>
 
-        {/* エリア */}
+        {/* エリア（Supabaseから取得） */}
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>対応エリア <span style={{ color: "#E24B4A" }}>*</span></div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {AREAS.map((a) => <button key={a} onClick={() => { toggleArea(a); setErrors((p) => ({ ...p, areas: "" })); }} style={toggleBtn(areas.includes(a))}>{a}</button>)}
-          </div>
+          {areaOptions.length === 0 ? (
+            <div style={{ fontSize: 13, color: "#999" }}>読み込み中...</div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {areaOptions.map((a) => <button key={a} onClick={() => { toggleArea(a); setErrors((p) => ({ ...p, areas: "" })); }} style={toggleBtn(areas.includes(a))}>{a}</button>)}
+            </div>
+          )}
           {errors.areas && <p style={errStyle}>{errors.areas}</p>}
         </div>
 

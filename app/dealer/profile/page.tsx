@@ -18,6 +18,7 @@ export default function DealerProfilePage() {
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
   const [tagOptions, setTagOptions] = useState<string[]>([]);
+  const [areaOptions, setAreaOptions] = useState<string[]>([]);
 
   // 編集フィールド
   const [name, setName]     = useState("");
@@ -36,9 +37,10 @@ export default function DealerProfilePage() {
     if (!dealerId) { router.push("/dealer/login"); return; }
 
     async function load() {
-      const [{ data: d }, { data: t }] = await Promise.all([
+      const [{ data: d }, { data: t }, { data: a }] = await Promise.all([
         supabase.from("dealer_applications").select("*").eq("id", dealerId).single(),
         supabase.from("tags").select("name").order("name"),
+        supabase.from("areas").select("name").order("name"),
       ]);
       if (!d) { router.push("/dealer/login"); return; }
       setDealer(d);
@@ -51,6 +53,7 @@ export default function DealerProfilePage() {
       setBio(d.bio || "");
       setTags(d.tags || []);
       setTagOptions((t || []).map((x: { name: string }) => x.name));
+      setAreaOptions((a || []).map((x: { name: string }) => x.name));
       setLoading(false);
     }
     load();
@@ -191,7 +194,7 @@ export default function DealerProfilePage() {
         <div style={sectionStyle}>
           <div style={{ fontSize: 10, color: GRAY3, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>対応エリア</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {AREAS.map((a) => <button key={a} onClick={() => toggleArea(a)} style={toggleBtn(areas.includes(a))}>{a}</button>)}
+            {(areaOptions.length > 0 ? areaOptions : AREAS).map((a) => <button key={a} onClick={() => toggleArea(a)} style={toggleBtn(areas.includes(a))}>{a}</button>)}
           </div>
         </div>
 
